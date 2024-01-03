@@ -1,0 +1,1 @@
+Folder to store figures produced by notebooks.
