@@ -7,6 +7,9 @@ Code and data repository for [Anau Montel and Correa (2024)](https://arxiv.org/a
 
 <img align="center" src="graphic.png">
 
+## Note
+The large `.hdf5` files in [`data/TangoSIDM/`](https://github.com/NoemiAM/TangoSIDM_satellites/tree/main/data/TangoSIDM) are stored via [Git Large File Storage](https://git-lfs.com).
+
 ## Citation
 
 If you use this code and the data in your analysis, please use the following citations:
