@@ -36,4 +36,4 @@ and
    month=oct, pages={3045–3063} }
 ```
 
-If you use the data available in the `data/Gaia/` folders, please make sure to cite the correct source as indicated in the `data/Gaia/README.md` file.
+If you use the data available in the [`data/Gaia/`](https://github.com/NoemiAM/TangoSIDM_satellites/tree/main/data/Gaia) folder, please make sure to cite the correct source as indicated in the [`data/Gaia/README.md`](https://github.com/NoemiAM/TangoSIDM_satellites/blob/main/data/Gaia/README.md) file.
