@@ -6,9 +6,9 @@ In this work, we focus on six simulations of size $25\ \mathrm{Mpc^3}$ that foll
 - `SigmaConstant00.hdf5` -- constant scattering cross section of $0\ \mathrm{cm^2/g}$, a cold dark matter model (CDM).
 - `SigmaConstant01.hdf5` -- constant scattering cross section of $1\ \mathrm{cm^2/g}$.
 - `SigmaConstant10.hdf5` -- constant scattering cross section of $10\ \mathrm{cm^2/g}$.
-- `SigmaVelDep20Anisotropic.hdf5` -- elastic and anisotropic collisions with scattering cross-section per unit mass of $\sigma_T / m_\chi = 20\ \mathrm{cm^2/g}$ at $10\ \mathrm{km\ \per\ s}$.
-- `SigmaVelDep60Anisotropic.hdf5` -- elastic and anisotropic collisions with scattering cross-section per unit mass of $\sigma_T / m_\chi = 60\ \mathrm{cm^2/g}$ at $10\ \mathrm{km\ \per\ s}$.
-- `SigmaVelDep100Anisotropic.hdf5` -- elastic and anisotropic collisions with scattering cross-section per unit mass of $\sigma_T / m_\chi = 100\ \mathrm{cm^2/g}$ at $10\ \mathrm{km\ \per\ s}$.
+- `SigmaVelDep20Anisotropic.hdf5` -- elastic and anisotropic collisions with scattering cross-section per unit mass of $\sigma_T / m_\chi = 20\ \mathrm{cm^2/g}$ at $10\ \mathrm{km/s}$.
+- `SigmaVelDep60Anisotropic.hdf5` -- elastic and anisotropic collisions with scattering cross-section per unit mass of $\sigma_T / m_\chi = 60\ \mathrm{cm^2/g}$ at $10\ \mathrm{km/s}$.
+- `SigmaVelDep100Anisotropic.hdf5` -- elastic and anisotropic collisions with scattering cross-section per unit mass of $\sigma_T / m_\chi = 100\ \mathrm{cm^2/g}$ at $10\ \mathrm{km/s}$.
 
 ## Data structure
 
