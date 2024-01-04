@@ -3,7 +3,7 @@
 Code and data repository for [Anau Montel and Correa (2024)](https://arxiv.org/abs/2401.xxxxx).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-red.svg)](https://opensource.org/licenses/MIT)
-[![arXiv](https://img.shields.io/badge/arXiv-2211.04291%20-green.svg)](https://arxiv.org/abs/2401.xxxxx)
+[![arXiv](https://img.shields.io/badge/arXiv-2401.xxxxx%20-green.svg)](https://arxiv.org/abs/2401.xxxxx)
 
 <img align="center" src="graphic.png">
 
