@@ -8,7 +8,10 @@ Code and data repository for [Anau Montel and Correa (2024)](https://arxiv.org/a
 <img align="center" src="graphic.png">
 
 ## Note
-The large `.hdf5` files in [`data/TangoSIDM/`](https://github.com/NoemiAM/TangoSIDM_satellites/tree/main/data/TangoSIDM) are stored via [Git Large File Storage](https://git-lfs.com).
+The repository contains:
+- [TangoSIDM data](https://github.com/NoemiAM/TangoSIDM_satellites/tree/main/data/TangoSIDM) regarding Milky-Way type halos and their satellites in the TangoSIDM simulations suite. The large `.hdf5` files in [`data/TangoSIDM/`](https://github.com/NoemiAM/TangoSIDM_satellites/tree/main/data/TangoSIDM) are stored via [Git Large File Storage](https://git-lfs.com). More information can be found in [`data/TangoSIDM/README.md`](https://github.com/NoemiAM/TangoSIDM_satellites/blob/main/data/TangoSIDM/README.md).
+- [Gaia data](https://github.com/NoemiAM/TangoSIDM_satellites/tree/main/data/Gaia) for the Milky Way dwarf-spheroidal galaxies. More information can be found in [`data/Gaia/README.md`](https://github.com/NoemiAM/TangoSIDM_satellites/blob/main/data/Gaia/README.md).
+- [examples](https://github.com/NoemiAM/TangoSIDM_satellites/tree/main/examples) notebook to explore [TangoSIDM data](https://github.com/NoemiAM/TangoSIDM_satellites/tree/main/data/TangoSIDM) and reproduce the main results of the work. 
 
 ## Citation
 
