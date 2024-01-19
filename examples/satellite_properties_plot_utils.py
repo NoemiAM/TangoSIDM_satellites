@@ -115,7 +115,7 @@ def plot_density_150pc(colorbar_param, print_correlation=False):
                     
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
                     if p>6 and p<1.5e3:
-                        im = axs[i].scatter(x=pericenter, y=density_fit, marker='+', linewidths=1, norm=norm, c=c, cmap=cmap, alpha= 0.7 if colorbar_param in ["mass_0", "mass_peak"] else 0.9)
+                        im = axs[i].scatter(x=pericenter, y=density_fit, marker='+',ms=2, linewidths=1, norm=norm, c=c, cmap=cmap, alpha= 0.7 if colorbar_param in ["mass_0", "mass_peak"] else 0.9)
                         p_array.append(p)
                         r_array.append(density_fit)
                         c_array.append(c)
@@ -139,26 +139,38 @@ def plot_density_150pc(colorbar_param, print_correlation=False):
             mask_11 = c_array>=11
             
             for jm, (mask, num_bins, color) in enumerate(zip([mask_9, mask_10], [8, 4], [myred, myblue])):
-                if i == 0: # use same binning everywhere
-                    p_bins.append(np.logspace(np.log10(20), np.log10(600), num_bins))
-                
-                r_bins_value = [r_array[mask][np.digitize(p_array[mask], np.logspace(np.log10(20), np.log10(600), num_bins)) == i] for i in range(num_bins)]
-                r_bins_value = [r if r.size!=0 else r_bins_value[i+1] for i, r in enumerate(r_bins_value)]
-                
-                r_bins_medians = np.array([np.median(bin_y) for bin_y in r_bins_value])
-                r_bins_16 = np.array([np.percentile(bin_y, 16) for bin_y in r_bins_value])
-                r_bins_84 = np.array([np.percentile(bin_y, 84) for bin_y in r_bins_value])
-                                        
-                axs[i].plot(p_bins[jm], r_bins_medians, color=color, ls = '-')
-                axs[i].plot(p_bins[jm], r_bins_16,  '--', color=color)
-                axs[i].plot(p_bins[jm], r_bins_84,  '--', color=color)
-                axs[i].fill_between(
-                    p_bins[jm],
-                    r_bins_16,
-                    r_bins_84,
-                    color=color,
-                    alpha=0.07,
-                )
+                # if i == 0: # use same binning everywhere
+                    # p_bins.append(np.logspace(np.log10(20), np.log10(600), num_bins))
+
+                p_bins = np.arrange(1, 3, 0.2)
+                p_bins = 10**p_bins
+                indx = np.digitize(p_array, p_bins, right=True)
+                # r_bins_value = [r_array[mask][np.digitize(p_array[mask], np.logspace(np.log10(20), np.log10(600), num_bins)) == i] for i in range(num_bins)]
+                # r_bins_value = [r if r.size!=0 else r_bins_value[i+1] for i, r in enumerate(r_bins_value)]
+
+                p_bins_medians = np.array([np.median(p_array[indx == idx]) for idx in indx])
+                r_bins_medians = np.array([np.median(r_array[indx == idx]) for idx in indx])
+                r_bins_16 = np.array([np.percentile(r_array[indx == idx], 16) for idx in indx])
+                r_bins_84 = np.array([np.percentile(r_array[indx == idx], 84) for idx in indx])
+
+                # r_bins_medians = np.array([np.median(bin_y) for bin_y in r_bins_value])
+                # r_bins_16 = np.array([np.percentile(bin_y, 16) for bin_y in r_bins_value])
+                # r_bins_84 = np.array([np.percentile(bin_y, 84) for bin_y in r_bins_value])
+
+                axs[i].plot(p_bins_medians, r_bins_medians, color=color, ls='-')
+                axs[i].plot(p_bins_medians, r_bins_16, '--', color=color)
+                axs[i].plot(p_bins_medians, r_bins_84, '--', color=color)
+
+                # axs[i].plot(p_bins[jm], r_bins_medians, color=color, ls = '-')
+                # axs[i].plot(p_bins[jm], r_bins_16,  '--', color=color)
+                # axs[i].plot(p_bins[jm], r_bins_84,  '--', color=color)
+                # axs[i].fill_between(
+                #     p_bins[jm],
+                #     r_bins_16,
+                #     r_bins_84,
+                #     color=color,
+                #     alpha=0.07,
+                # )
             
         else:
             if i == 0: # use same binning everywhere
