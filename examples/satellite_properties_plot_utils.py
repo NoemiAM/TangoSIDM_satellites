@@ -49,7 +49,7 @@ def colorbar_args(colorbar_param):
 
     elif colorbar_param == 'mass_0':
         vmin, vmax = 9, 12
-        cmap = matplotlib.colors.ListedColormap([myred, myblue, "olivedrab"])
+        cmap = matplotlib.colors.ListedColormap(['tab:orange', myred, myblue,'darkblue', "olivedrab"])
         norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=((vmax+vmin)/2), vmax=vmax)
 
     elif colorbar_param == 'mass_peak':
