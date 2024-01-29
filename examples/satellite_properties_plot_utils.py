@@ -66,6 +66,7 @@ COLORBAR_DICT = {
     "mass_0" : fr'$\log_{{10}}\mathrm{{M_{{bound}}}}$ $\mathrm{{[M_\odot]}}$',
     "mass_peak" : fr'$\log_{{10}}\mathrm{{M_{{peak}}}}$ $\mathrm{{[M_\odot]}}$',
     "v_peak" : fr'$\mathrm{{V_{{peak}}}}$ $\mathrm{{[km\ s^{{-1}}]}}$',
+    "v_max" : fr'$\mathrm{{V_{{max}}(z=0)}}$ $\mathrm{{[km\ s^{{-1}}]}}$'
 }
 
 
@@ -84,7 +85,13 @@ def colorbar_args(colorbar_param):
         vmin, vmax = 9, 12
         cmap = matplotlib.colors.ListedColormap([myblue, myred, 'olivedrab'])
         norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=((vmax+vmin)/2), vmax=vmax)
+    
     elif colorbar_param == 'v_peak':
+        vmin, vmax = 15, 50
+        cmap = matplotlib.cm.YlGnBu
+        norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=((vmax+vmin)/2), vmax=vmax)
+        
+    elif colorbar_param == 'v_max':
         vmin, vmax = 15, 50
         cmap = matplotlib.cm.YlGnBu
         norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=((vmax+vmin)/2), vmax=vmax)
@@ -146,6 +153,8 @@ def plot_density_150pc(colorbar_param, print_correlation=False, filename:str=Non
                         c = np.log10(mass_peak)
                     elif colorbar_param == 'v_peak':
                         c = data_subhalo['tree_data']['Vmax'][int(z_accr_type_idx)]
+                    elif colorbar_param == 'v_max':
+                        c = data_subhalo['tree_data']['Vmax'][0]
                     
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
                     if p>6 and p<1.5e3:
@@ -213,7 +222,96 @@ def plot_density_150pc(colorbar_param, print_correlation=False, filename:str=Non
         fig.savefig(f"figures/{filename}.png",dpi=300)
     plt.show()
     
+ 
+ 
+##############################################################################################
+### Density at 150pc versus velocity  (V_max(z=0), V_peak, V(r_fiducial)) plotting routine ###
+##############################################################################################
+def plot_density_150pc_velocity(velocity:str="V_max", print_correlation=False, filename:str=None):
     
+    print(f'Plotting density at 150pc versus velocity {velocity}!')
+
+    fig, axs = plt.subplots(2, 3, sharex=True, sharey=False, figsize=(13, 8), dpi=200, facecolor='white')
+    axs = axs.flatten()
+    
+    p_bins = []
+    for i, (id, id_name) in enumerate(IDs.items()):
+        file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
+        v_array, r_array = [], []
+        
+        if i ==0:
+            axs[i].text(16, 1e9,  fr'$\texttt{{{id_name}}}$', color='black', 
+                bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'), horizontalalignment='left')
+        else:
+            axs[i].text(16, 1.5e8,  fr'$\texttt{{{id_name}}}$', color='black', 
+                bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'), horizontalalignment='left')
+
+        for idx in file.keys():
+            if file[f'{idx}'].attrs.get('subhalo_of') is not None:
+                subhalo_idx = idx
+
+                if np.log10(file[str(subhalo_idx)]['tree_data']['bound_mass_dm'][0]) > 9: # MINIMUM satellite mass = 10^9
+                    data_subhalo = file[f'{subhalo_idx}']
+                    pericenter = data_subhalo['tree_data']['pericenter'][1]
+                    z_accr_type_idx, accretion = data_subhalo['tree_data']['accretion']
+                    
+                    if velocity == "v_peak" : vel = data_subhalo['tree_data']['Vmax'][int(z_accr_type_idx)]
+                    elif velocity == "v_max": vel = data_subhalo['tree_data']['Vmax'][0]
+                    elif velocity == "v_fid": vel = data_subhalo['halo_data']['rotation_at_fiducial_radius'][0]
+                    else: print("Wrong velocity key! Choose between 'v_max', 'v_peak', or 'v_fid'.")
+                    
+                    if id_name == "CDM":
+                        r0, rho0 = data_subhalo['halo_data']['nfw_fit']
+                        density_fit = fit_nfw_model(np.array([0.15]), r0, rho0)
+                        density_fit = 10**density_fit
+                    else:
+                        r0, rho0 = data_subhalo['halo_data']['iso_fit']
+                        density_fit = fit_isothermal_model(np.array([0.15]*2), r0, rho0)[0]
+                        density_fit = 10**density_fit
+                    
+                    im = axs[i].scatter(x=vel, y=density_fit, marker='o', alpha=0.7, c='olivedrab', linewidths=0)
+                    v_array.append(vel)
+                    r_array.append(density_fit)
+                  
+        v_array = np.array(v_array)
+        r_array = np.array(r_array)
+        
+        if print_correlation:
+            pearson = scipy.stats.pearsonr(v_array, r_array)
+            spearman = scipy.stats.spearmanr(v_array, r_array)
+            print(id_name)
+            print("Pearson's r:", pearson)
+            print("Spearman's rho:", spearman)
+            print("\n")
+        
+        v_bins = np.arange(10, 80, 5)
+        plot_median_relation(axs[i], v_bins, v_array, r_array, color='lightslategrey')
+
+        file.close() 
+                      
+    # axis stuff
+    for i, ax in enumerate(axs):
+        ax.set_yscale('log')
+        ax.set_xlim(10, 80)
+        if i ==0:
+            ax.set_ylim(1e7, 2e9)
+        else:
+            ax.set_ylim(1e6, 3e8)
+            
+    for axi in [3, 4, 5]:
+        if velocity == "v_peak" : xlabel = fr'$\mathrm{{V_{{peak}}}}$ $\mathrm{{[km\ s^{{-1}}]}}$'
+        elif velocity == "v_max": xlabel= fr'$\mathrm{{V_{{max}}(z=0)}}$ $\mathrm{{[km\ s^{{-1}}]}}$'
+        elif velocity == "v_fid": xlabel= fr'$\mathrm{{V_{{circ}}(r_{{fid}})}}$ $\mathrm{{[km\ s^{{-1}}]}}$'
+        axs[axi].set_xlabel(xlabel)
+    for axi in [0, 3]:
+        axs[axi].set_ylabel(r'$\rho(150\ \mathrm{pc})\ [\mathrm{M}_\odot \ \mathrm{kpc}^3]$')
+
+    plt.subplots_adjust(hspace=0.2, wspace=0.2, right=.86)
+    if filename is not None:
+        fig.savefig(f"figures/{filename}.png",dpi=300)
+    plt.show()
+    
+   
 #############################################################
 ### Circular velocity at fiducial radius plotting routine ###
 #############################################################
@@ -445,7 +543,7 @@ def plot_vmax_over_vpeak(colorbar_param, print_correlation=False, filename:str=N
 
     for i, (id, id_name) in enumerate(IDs.items()):
         file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
-        axs[i].text(10, 0.1, fr'$\texttt{{{id_name}}}$', color='black', 
+        axs[i].text(10, 0.2, fr'$\texttt{{{id_name}}}$', color='black', 
             bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'))
 
         p_array, r_array, c_array = [], [], []
