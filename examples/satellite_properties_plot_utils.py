@@ -27,8 +27,35 @@ IDs = {
 plt.style.use("pltstyle.mplstyle")
 
 mycmap = matplotlib.cm.RdYlBu
-myblue = mycmap(0.1)
-myred =  mycmap(0.9)
+myblue = mycmap(0.9)
+myred =  mycmap(0.1)
+
+
+##################################
+### Plot median with error bar ###
+##################################
+
+def plot_median_relation(ax, bins, x, y, errorbars=True, color='lightslategrey'):
+    num_bins = len(bins)
+    indx = np.digitize(x, bins)
+    p_bins_medians = np.array([np.median(x[indx == idx]) for idx in np.arange(num_bins) if len(x[indx==idx])>5])
+    r_bins_medians = np.array([np.median(y[indx == idx]) for idx in np.arange(num_bins) if len(x[indx==idx])>5])
+    ax.plot(p_bins_medians, r_bins_medians, lw=3, color='white')
+    ax.plot(p_bins_medians, r_bins_medians, color=color)
+    
+    if errorbars:
+        r_bins_16 = np.array([np.percentile(y[indx == idx], 16) for idx in np.arange(num_bins) if len(x[indx==idx])>5])
+        r_bins_84 = np.array([np.percentile(y[indx == idx], 84) for idx in np.arange(num_bins) if len(x[indx==idx])>5]) 
+        ax.plot(p_bins_medians, r_bins_16, '--', color=color)
+        ax.plot(p_bins_medians, r_bins_84, '--', color=color)
+        ax.fill_between(
+                        p_bins_medians,
+                        r_bins_16,
+                        r_bins_84,
+                        color=color,
+                        alpha=0.15,
+                    )
+
 
 ###########################
 ### Colorbar parameters ###
@@ -38,6 +65,7 @@ COLORBAR_DICT = {
     "accretion" : fr'$z_\mathrm{{accretion}}$',
     "mass_0" : fr'$\log_{{10}}\mathrm{{M_{{bound}}}}$ $\mathrm{{[M_\odot]}}$',
     "mass_peak" : fr'$\log_{{10}}\mathrm{{M_{{peak}}}}$ $\mathrm{{[M_\odot]}}$',
+    "v_peak" : fr'$\mathrm{{V_{{peak}}}}$ $\mathrm{{[km\ s^{{-1}}]}}$',
 }
 
 
@@ -49,12 +77,16 @@ def colorbar_args(colorbar_param):
 
     elif colorbar_param == 'mass_0':
         vmin, vmax = 9, 12
-        cmap = matplotlib.colors.ListedColormap(['tab:orange', myred, myblue,'darkblue', "olivedrab"])
+        cmap = matplotlib.colors.ListedColormap([myblue, myred, 'olivedrab'])
         norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=((vmax+vmin)/2), vmax=vmax)
 
     elif colorbar_param == 'mass_peak':
         vmin, vmax = 9, 12
-        cmap = matplotlib.colors.ListedColormap([myred, myblue, "olivedrab"])
+        cmap = matplotlib.colors.ListedColormap([myblue, myred, 'olivedrab'])
+        norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=((vmax+vmin)/2), vmax=vmax)
+    elif colorbar_param == 'v_peak':
+        vmin, vmax = 15, 50
+        cmap = matplotlib.cm.YlGnBu
         norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=((vmax+vmin)/2), vmax=vmax)
         
     else:
@@ -66,7 +98,7 @@ def colorbar_args(colorbar_param):
 ##################################################################
 ### Density at 150pc versus pericenter radius plotting routine ###
 ##################################################################
-def plot_density_150pc(colorbar_param, print_correlation=False):
+def plot_density_150pc(colorbar_param, print_correlation=False, filename:str=None):
     
     print(f'Plotting density at 150pc versus pericenter distance with {colorbar_param} colorbar!')
 
@@ -112,15 +144,16 @@ def plot_density_150pc(colorbar_param, print_correlation=False):
                     elif colorbar_param == 'mass_peak':
                         mass_peak = data_subhalo['tree_data']['bound_mass_dm'][int(z_accr_type_idx)]
                         c = np.log10(mass_peak)
+                    elif colorbar_param == 'v_peak':
+                        c = data_subhalo['tree_data']['Vmax'][int(z_accr_type_idx)]
                     
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
                     if p>6 and p<1.5e3:
-                        im = axs[i].scatter(x=pericenter, y=density_fit, marker='+',ms=2, linewidths=1, norm=norm, c=c, cmap=cmap, alpha= 0.7 if colorbar_param in ["mass_0", "mass_peak"] else 0.9)
+                        im = axs[i].scatter(x=pericenter, y=density_fit, marker='+',linewidths=1.1, norm=norm, c=c, cmap=cmap, alpha= 0.7 if colorbar_param in ["mass_0", "mass_peak"] else 0.9)
                         p_array.append(p)
                         r_array.append(density_fit)
                         c_array.append(c)
                   
-        num_bins = 10
         p_array = np.array(p_array)
         r_array = np.array(r_array)
         c_array = np.array(c_array)
@@ -138,59 +171,18 @@ def plot_density_150pc(colorbar_param, print_correlation=False):
             mask_10 = (c_array>=10)*(c_array<11)
             mask_11 = c_array>=11
             
-            for jm, (mask, num_bins, color) in enumerate(zip([mask_9, mask_10], [8, 4], [myred, myblue])):
-                # if i == 0: # use same binning everywhere
-                    # p_bins.append(np.logspace(np.log10(20), np.log10(600), num_bins))
-
-                p_bins = np.arrange(1, 3, 0.2)
-                p_bins = 10**p_bins
-                indx = np.digitize(p_array, p_bins, right=True)
-                # r_bins_value = [r_array[mask][np.digitize(p_array[mask], np.logspace(np.log10(20), np.log10(600), num_bins)) == i] for i in range(num_bins)]
-                # r_bins_value = [r if r.size!=0 else r_bins_value[i+1] for i, r in enumerate(r_bins_value)]
-
-                p_bins_medians = np.array([np.median(p_array[indx == idx]) for idx in indx])
-                r_bins_medians = np.array([np.median(r_array[indx == idx]) for idx in indx])
-                r_bins_16 = np.array([np.percentile(r_array[indx == idx], 16) for idx in indx])
-                r_bins_84 = np.array([np.percentile(r_array[indx == idx], 84) for idx in indx])
-
-                # r_bins_medians = np.array([np.median(bin_y) for bin_y in r_bins_value])
-                # r_bins_16 = np.array([np.percentile(bin_y, 16) for bin_y in r_bins_value])
-                # r_bins_84 = np.array([np.percentile(bin_y, 84) for bin_y in r_bins_value])
-
-                axs[i].plot(p_bins_medians, r_bins_medians, color=color, ls='-')
-                axs[i].plot(p_bins_medians, r_bins_16, '--', color=color)
-                axs[i].plot(p_bins_medians, r_bins_84, '--', color=color)
-
-                # axs[i].plot(p_bins[jm], r_bins_medians, color=color, ls = '-')
-                # axs[i].plot(p_bins[jm], r_bins_16,  '--', color=color)
-                # axs[i].plot(p_bins[jm], r_bins_84,  '--', color=color)
-                # axs[i].fill_between(
-                #     p_bins[jm],
-                #     r_bins_16,
-                #     r_bins_84,
-                #     color=color,
-                #     alpha=0.07,
-                # )
+            p_bins = np.arange(1, 3, 0.3)
+            p_bins = 10**p_bins
+                
+            for jm, (mask, color) in enumerate(zip([mask_9, mask_10], [myblue, myred])):
+                p_mask = p_array[mask]
+                r_mask = r_array[mask]
+                plot_median_relation(axs[i], p_bins, p_mask, r_mask, color=color)
             
         else:
-            if i == 0: # use same binning everywhere
-                p_bins = np.logspace(np.log10(20), np.log10(600), num_bins)
-            r_bins_value = [r_array[np.digitize(p_array, np.logspace(np.log10(20), np.log10(600), num_bins + 1)) == i] for i in range(1, num_bins + 1)]
-            r_bins_medians = np.array([np.median(bin_y) for bin_y in r_bins_value])
-            r_bins_16 = np.array([np.percentile(bin_y, 16) for bin_y in r_bins_value])
-            r_bins_84 = np.array([np.percentile(bin_y, 84) for bin_y in r_bins_value])    
-
-            color='k'
-            axs[i].plot(p_bins, r_bins_medians, color=color)
-            axs[i].plot(p_bins, r_bins_16, '--', color=color)
-            axs[i].plot(p_bins, r_bins_84,  '--',color=color)
-            axs[i].fill_between(
-                p_bins,
-                r_bins_16,
-                r_bins_84,
-                color=color,
-                alpha=0.07,
-            )
+            p_bins = np.arange(1, 3, 0.3)
+            p_bins = 10**p_bins
+            plot_median_relation(axs[i], p_bins, p_array, r_array, color='lightslategrey')
 
         file.close() 
                       
@@ -217,20 +209,21 @@ def plot_density_150pc(colorbar_param, print_correlation=False):
         cbar.ax.set_yticks([9, 10, 11, 12]) 
 
     plt.subplots_adjust(hspace=0.2, wspace=0.2, right=.86)
+    if filename is not None:
+        fig.savefig(f"figures/{filename}.png",dpi=300)
     plt.show()
     
     
 #############################################################
 ### Circular velocity at fiducial radius plotting routine ###
 #############################################################
-def plot_circular_velocity_fiducial_radius(colorbar_param, print_correlation=False):
+def plot_circular_velocity_fiducial_radius(colorbar_param, print_correlation=False, filename:str=None):
     
     print(f'Plotting circular velocity at fiducial radius versus pericenter distance with {colorbar_param} colorbar!')
 
     fig, axs = plt.subplots(2, 3, sharex=True, sharey=True, figsize=(13, 8), dpi=200, facecolor='white')
     axs = axs.flatten()
     cmap, norm = colorbar_args(colorbar_param)
-    p_bins, r_bins_medians_CDM = [], []
 
     for i, (id, id_name) in enumerate(IDs.items()):
         file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
@@ -265,7 +258,6 @@ def plot_circular_velocity_fiducial_radius(colorbar_param, print_correlation=Fal
                         c_array.append(c)
                         r_array.append(rotation_at_fiducial_radius[0])
                   
-        num_bins = 8
         p_array = np.array(p_array)
         r_array = np.array(r_array)
         c_array = np.array(c_array)
@@ -283,53 +275,25 @@ def plot_circular_velocity_fiducial_radius(colorbar_param, print_correlation=Fal
             mask_10 = (c_array>=10)*(c_array<11)
             mask_11 = c_array>=11
             
-            for jm, (mask, num_bins, color) in enumerate(zip([mask_9, mask_10], [8, 4], [myred, myblue])):
-                if i == 0: # use same binning everywhere
-                    p_bins.append(np.logspace(np.log10(20), np.log10(600), num_bins))
+            p_bins = np.arange(1, 3, 0.3)
+            p_bins = 10**p_bins
                 
-                r_bins_value = [r_array[mask][np.digitize(p_array[mask], np.logspace(np.log10(20), np.log10(600), num_bins)) == i] for i in range(num_bins)]
-                r_bins_value = [r if r.size!=0 else r_bins_value[i+1] for i, r in enumerate(r_bins_value)]
-                
-                r_bins_medians = np.array([np.median(bin_y) for bin_y in r_bins_value])
-                r_bins_16 = np.array([np.percentile(bin_y, 16) for bin_y in r_bins_value])
-                r_bins_84 = np.array([np.percentile(bin_y, 84) for bin_y in r_bins_value])
-                                        
-                axs[i].plot(p_bins[jm], r_bins_medians, color=color, ls = '-')
-                axs[i].plot(p_bins[jm], r_bins_16,  '--', color=color)
-                axs[i].plot(p_bins[jm], r_bins_84,  '--', color=color)
-                axs[i].fill_between(
-                    p_bins[jm],
-                    r_bins_16,
-                    r_bins_84,
-                    color=color,
-                    alpha=0.07,
-                )
+            for jm, (mask, color) in enumerate(zip([mask_9, mask_10], [myblue, myred])):
+                p_mask = p_array[mask]
+                r_mask = r_array[mask]
+                plot_median_relation(axs[i], p_bins, p_mask, r_mask, color=color)
             
         else:
-            
-            if i == 0: # use same binning everywhere
-                p_bins = np.logspace(np.log10(20), np.log10(600), num_bins)
-            r_bins_value = [r_array[np.digitize(p_array, np.logspace(np.log10(20), np.log10(600), num_bins + 1)) == i] for i in range(1, num_bins + 1)]
-            r_bins_medians = np.array([np.median(bin_y) for bin_y in r_bins_value])
-            r_bins_16 = np.array([np.percentile(bin_y, 16) for bin_y in r_bins_value])
-            r_bins_84 = np.array([np.percentile(bin_y, 84) for bin_y in r_bins_value])    
+            p_bins = np.arange(1, 3, 0.3)
+            p_bins = 10**p_bins
 
             if id_name == "CDM":
-                color='lightslategrey'
-                r_bins_medians_CDM = r_bins_medians
+                p_CDM = p_array
+                r_CDM = r_array
+                plot_median_relation(axs[i], p_bins, p_array, r_array, color='k')
             else:
-                color='k'
-                axs[i].plot(p_bins, r_bins_medians_CDM, color='lightslategrey')
-            axs[i].plot(p_bins, r_bins_medians, color=color)
-            axs[i].plot(p_bins, r_bins_16, '--', color=color)
-            axs[i].plot(p_bins, r_bins_84,  '--',color=color)
-            axs[i].fill_between(
-                p_bins,
-                r_bins_16,
-                r_bins_84,
-                color=color,
-                alpha=0.07,
-            )
+                plot_median_relation(axs[i], p_bins, p_CDM, r_CDM, errorbars=False, color='k')
+                plot_median_relation(axs[i], p_bins, p_array, r_array, color='lightslategrey')
 
         file.close() 
            
@@ -353,20 +317,21 @@ def plot_circular_velocity_fiducial_radius(colorbar_param, print_correlation=Fal
         cbar.ax.set_yticks([9, 10, 11, 12]) 
 
     plt.subplots_adjust(hspace=0.1, wspace=0.1, right=.86)
+    if filename is not None:
+        fig.savefig(f"figures/{filename}.png",dpi=300)
     plt.show()
     
     
 ###################################################
 ### Circular velocity at 2 kpc plotting routine ###
 ###################################################
-def plot_circular_velocity_2kpc(colorbar_param, print_correlation=False):
+def plot_circular_velocity_2kpc(colorbar_param, print_correlation=False, filename:str=None):
     
     print(f'Plotting circular velocity at 2kpc versus pericenter distance with {colorbar_param} colorbar!')
 
     fig, axs = plt.subplots(2, 3, sharex=True, sharey=True, figsize=(13, 8), dpi=200, facecolor='white')
     axs = axs.flatten()
     cmap, norm = colorbar_args(colorbar_param)
-    p_bins, r_bins_medians_CDM = [], []
 
     for i, (id, id_name) in enumerate(IDs.items()):
         file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
@@ -401,7 +366,6 @@ def plot_circular_velocity_2kpc(colorbar_param, print_correlation=False):
                         c_array.append(c)
                         r_array.append(rotation_at_radius[0])
                   
-        num_bins = 8
         p_array = np.array(p_array)
         r_array = np.array(r_array)
         c_array = np.array(c_array)
@@ -419,53 +383,25 @@ def plot_circular_velocity_2kpc(colorbar_param, print_correlation=False):
             mask_10 = (c_array>=10)*(c_array<11)
             mask_11 = c_array>=11
             
-            for jm, (mask, num_bins, color) in enumerate(zip([mask_9, mask_10], [8, 4], [myred, myblue])):
-                if i == 0: # use same binning everywhere
-                    p_bins.append(np.logspace(np.log10(20), np.log10(600), num_bins))
+            p_bins = np.arange(1, 3, 0.3)
+            p_bins = 10**p_bins
                 
-                r_bins_value = [r_array[mask][np.digitize(p_array[mask], np.logspace(np.log10(20), np.log10(600), num_bins)) == i] for i in range(num_bins)]
-                r_bins_value = [r if r.size!=0 else r_bins_value[i+1] for i, r in enumerate(r_bins_value)]
-                
-                r_bins_medians = np.array([np.median(bin_y) for bin_y in r_bins_value])
-                r_bins_16 = np.array([np.percentile(bin_y, 16) for bin_y in r_bins_value])
-                r_bins_84 = np.array([np.percentile(bin_y, 84) for bin_y in r_bins_value])
-                                        
-                axs[i].plot(p_bins[jm], r_bins_medians, color=color, ls = '-')
-                axs[i].plot(p_bins[jm], r_bins_16,  '--', color=color)
-                axs[i].plot(p_bins[jm], r_bins_84,  '--', color=color)
-                axs[i].fill_between(
-                    p_bins[jm],
-                    r_bins_16,
-                    r_bins_84,
-                    color=color,
-                    alpha=0.07,
-                )
+            for jm, (mask, color) in enumerate(zip([mask_9, mask_10], [myblue, myred])):
+                p_mask = p_array[mask]
+                r_mask = r_array[mask]
+                plot_median_relation(axs[i], p_bins, p_mask, r_mask, color=color)
             
         else:
-            
-            if i == 0: # use same binning everywhere
-                p_bins = np.logspace(np.log10(20), np.log10(600), num_bins)
-            r_bins_value = [r_array[np.digitize(p_array, np.logspace(np.log10(20), np.log10(600), num_bins + 1)) == i] for i in range(1, num_bins + 1)]
-            r_bins_medians = np.array([np.median(bin_y) for bin_y in r_bins_value])
-            r_bins_16 = np.array([np.percentile(bin_y, 16) for bin_y in r_bins_value])
-            r_bins_84 = np.array([np.percentile(bin_y, 84) for bin_y in r_bins_value])    
+            p_bins = np.arange(1, 3, 0.3)
+            p_bins = 10**p_bins
 
             if id_name == "CDM":
-                color='lightslategrey'
-                r_bins_medians_CDM = r_bins_medians
+                p_CDM = p_array
+                r_CDM = r_array
+                plot_median_relation(axs[i], p_bins, p_array, r_array, color='k')
             else:
-                color='k'
-                axs[i].plot(p_bins, r_bins_medians_CDM, color='lightslategrey')
-            axs[i].plot(p_bins, r_bins_medians, color=color)
-            axs[i].plot(p_bins, r_bins_16, '--', color=color)
-            axs[i].plot(p_bins, r_bins_84,  '--',color=color)
-            axs[i].fill_between(
-                p_bins,
-                r_bins_16,
-                r_bins_84,
-                color=color,
-                alpha=0.07,
-            )
+                plot_median_relation(axs[i], p_bins, p_CDM, r_CDM, errorbars=False, color='k')
+                plot_median_relation(axs[i], p_bins, p_array, r_array, color='lightslategrey')
 
         file.close() 
            
@@ -489,4 +425,117 @@ def plot_circular_velocity_2kpc(colorbar_param, print_correlation=False):
         cbar.ax.set_yticks([9, 10, 11, 12]) 
 
     plt.subplots_adjust(hspace=0.1, wspace=0.1, right=.86)
+    if filename is not None:
+        fig.savefig(f"figures/{filename}.png",dpi=300)
     plt.show()
+    
+    
+    
+##############################################################################
+### Max circular velocity / max circular velocity at peak plotting routine ###
+##############################################################################
+def plot_vmax_over_vpeak(colorbar_param, print_correlation=False, filename:str=None):
+    """E.g. Fig.2 in Robles and Bullock 2020"""
+    
+    print(f'Max circular velocity / max circular velocity at peak with {colorbar_param} colorbar!')
+
+    fig, axs = plt.subplots(2, 3, sharex=True, sharey=True, figsize=(13, 8), dpi=200, facecolor='white')
+    axs = axs.flatten()
+    cmap, norm = colorbar_args(colorbar_param)
+
+    for i, (id, id_name) in enumerate(IDs.items()):
+        file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
+        axs[i].text(10, 0.1, fr'$\texttt{{{id_name}}}$', color='black', 
+            bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'))
+
+        p_array, r_array, c_array = [], [], []
+        for idx in file.keys():
+            if file[f'{idx}'].attrs.get('subhalo_of') is not None:
+                subhalo_idx = idx
+
+                if np.log10(file[str(subhalo_idx)]['tree_data']['bound_mass_dm'][0]) > 9: # MINIMUM satellite mass = 10^9
+                    data_subhalo = file[f'{subhalo_idx}']
+                    pericenter = data_subhalo['tree_data']['pericenter'][1]
+                    z_accr_type_idx, accretion = data_subhalo['tree_data']['accretion']
+                    vmax = data_subhalo['tree_data']['Vmax'][0]
+                    vpeak = data_subhalo['tree_data']['Vmax'][int(z_accr_type_idx)]
+
+                    if colorbar_param == 'accretion':
+                        c = accretion
+                    elif colorbar_param == 'mass_0':
+                        mass_0 = data_subhalo['tree_data']['bound_mass_dm'][0] 
+                        c = np.log10(mass_0)
+                    elif colorbar_param == 'mass_peak':
+                        mass_peak = data_subhalo['tree_data']['bound_mass_dm'][int(z_accr_type_idx)]
+                        c = np.log10(mass_peak)
+                    
+                    p = pericenter[0] if pericenter.shape==(1,) else pericenter
+                    if p>6 and p<1.5e3:
+                        im = axs[i].scatter(x=pericenter, y=vmax/vpeak, marker='+', linewidths=1, norm=norm, c=c, cmap=cmap, alpha= 0.7 if colorbar_param in ["mass_0", "mass_peak"] else 0.9)
+                        p_array.append(p)
+                        c_array.append(c)
+                        r_array.append(vmax/vpeak)
+                  
+        p_array = np.array(p_array)
+        r_array = np.array(r_array)
+        c_array = np.array(c_array)
+            
+        if print_correlation:
+            pearson = scipy.stats.pearsonr(p_array, r_array)
+            spearman = scipy.stats.spearmanr(p_array, r_array)
+            print(id_name)
+            print("Pearson's r:", pearson)
+            print("Spearman's rho:", spearman)
+            print("\n")
+            
+        if colorbar_param in ["mass_0", "mass_peak"]:
+            mask_9 = c_array<10
+            mask_10 = (c_array>=10)*(c_array<11)
+            mask_11 = c_array>=11
+            
+            p_bins = np.arange(1, 3, 0.3)
+            p_bins = 10**p_bins
+                
+            for jm, (mask, color) in enumerate(zip([mask_9, mask_10], [myblue, myred])):
+                p_mask = p_array[mask]
+                r_mask = r_array[mask]
+                plot_median_relation(axs[i], p_bins, p_mask, r_mask, color=color)
+            
+        else:
+            p_bins = np.arange(1, 3, 0.3)
+            p_bins = 10**p_bins
+
+            if id_name == "CDM":
+                p_CDM = p_array
+                r_CDM = r_array
+                plot_median_relation(axs[i], p_bins, p_array, r_array, color='k')
+            else:
+                plot_median_relation(axs[i], p_bins, p_CDM, r_CDM, errorbars=False, color='k')
+                plot_median_relation(axs[i], p_bins, p_array, r_array, color='lightslategrey')
+
+        file.close() 
+           
+    # axis stuff
+    for ax in axs:
+        ax.set_xscale('log')
+        ax.set_xlim(6e0, 1.5e3)
+        ax.set_ylim(0, 2)
+        # ax.set_yticks([20, 40, 60, 80])
+
+    for axi in [3, 4, 5]:
+        axs[axi].set_xlabel(r'$r_{{p}}\ [\mathrm{kpc}]$')
+    for axi in [0, 3]:
+        axs[axi].set_ylabel(fr'$\mathrm{{V_{{max}}}}(z=0)/\mathrm{{V_{{peak}}}}$')
+
+    # colorbar stuff
+    cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.04)
+    if colorbar_param == "accretion":
+        cbar.ax.set_yticks([0, 1, 2]) 
+    elif colorbar_param in ["mass_0", "mass_peak"]:
+        cbar.ax.set_yticks([9, 10, 11, 12]) 
+
+    plt.subplots_adjust(hspace=0.1, wspace=0.1, right=.86)
+    if filename is not None:
+        fig.savefig(f"figures/{filename}.png",dpi=300)
+    plt.show()
+    
