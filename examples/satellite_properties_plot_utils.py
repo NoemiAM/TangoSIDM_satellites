@@ -34,7 +34,6 @@ myred =  mycmap(0.1)
 ##################################
 ### Plot median with error bar ###
 ##################################
-
 def plot_median_relation(ax, bins, x, y, errorbars=True, color='lightslategrey'):
     num_bins = len(bins)
     indx = np.digitize(x, bins)
@@ -57,16 +56,31 @@ def plot_median_relation(ax, bins, x, y, errorbars=True, color='lightslategrey')
                     )
 
 
+##############################
+### Get data correlations ###
+##############################
+def get_correlations(x_array, y_array, id_name):
+            pearson = scipy.stats.pearsonr(x_array, y_array)
+            spearman = scipy.stats.spearmanr(x_array, y_array)
+            print(id_name)
+            print("Pearson's r:", pearson)
+            print("Spearman's rho:", spearman)
+            print("\n")
+            return pearson, spearman
+        
+        
 ###########################
 ### Colorbar parameters ###
 ###########################
 
 COLORBAR_DICT = {
-    "accretion" : fr'$z_\mathrm{{accretion}}$',
-    "mass_0" : fr'$\log_{{10}}\mathrm{{M_{{bound}}}}$ $\mathrm{{[M_\odot]}}$',
-    "mass_peak" : fr'$\log_{{10}}\mathrm{{M_{{peak}}}}$ $\mathrm{{[M_\odot]}}$',
-    "v_peak" : fr'$\mathrm{{V_{{peak}}}}$ $\mathrm{{[km\ s^{{-1}}]}}$',
-    "v_max" : fr'$\mathrm{{V_{{max}}(z=0)}}$ $\mathrm{{[km\ s^{{-1}}]}}$'
+    "accretion" : r'$z_\mathrm{accretion}$',
+    "mass_0" : r'$\log_{10}\mathrm{M_{bound}}$ $\mathrm{[M_\odot]}$',
+    "mass_peak" : r'$\log_{10}\mathrm{M_{peak}}$ $\mathrm{[M_\odot]}$',
+    "v_peak" : r'$\mathrm{V_{peak}}$ $\mathrm{[km\ s^{-1}]}$',
+    "v_max" : r'$\mathrm{V_{max}(z=0)}$ $\mathrm{[km\ s^{-1}]}$',
+    "r_max" : r'$\mathrm{R_{max}(z=0)}$ $\mathrm{[kpc]}$',
+    "pericenter" : r'$r_{p}\ [\mathrm{kpc}]$'
 }
 
 
@@ -96,6 +110,16 @@ def colorbar_args(colorbar_param):
         cmap = matplotlib.cm.YlGnBu
         norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=((vmax+vmin)/2), vmax=vmax)
         
+    elif colorbar_param == 'r_max':
+        vmin, vmax = 0.1, 20
+        cmap = matplotlib.cm.YlGnBu
+        norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=5, vmax=vmax)
+     
+    elif colorbar_param == 'pericenter':
+        vmin, vmax = 1, 200
+        cmap = matplotlib.cm.viridis_r
+        norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
+        
     else:
         raise KeyError("Wrong key for colorbar_param.")
         
@@ -113,10 +137,9 @@ def plot_density_150pc(colorbar_param, print_correlation=False, filename:str=Non
     axs = axs.flatten()
     cmap, norm = colorbar_args(colorbar_param)
     
-    p_bins = []
     for i, (id, id_name) in enumerate(IDs.items()):
         file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
-        p_array, r_array, c_array = [], [], []
+        x_array, y_array, c_array = [], [], []
         
         if i ==0:
             axs[i].text(1e3, 1e9,  fr'$\texttt{{{id_name}}}$', color='black', 
@@ -155,43 +178,38 @@ def plot_density_150pc(colorbar_param, print_correlation=False, filename:str=Non
                         c = data_subhalo['tree_data']['Vmax'][int(z_accr_type_idx)]
                     elif colorbar_param == 'v_max':
                         c = data_subhalo['tree_data']['Vmax'][0]
+                    elif colorbar_param == 'r_max':
+                        if 'Rmax' in data_subhalo['tree_data'].keys(): c = data_subhalo['tree_data']['Rmax'][...]
+                        else: continue
                     
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
                     if p>6 and p<1.5e3:
                         im = axs[i].scatter(x=pericenter, y=density_fit, marker='+',linewidths=1.1, norm=norm, c=c, cmap=cmap, alpha= 0.7 if colorbar_param in ["mass_0", "mass_peak"] else 0.9)
-                        p_array.append(p)
-                        r_array.append(density_fit)
+                        x_array.append(p)
+                        y_array.append(density_fit)
                         c_array.append(c)
                   
-        p_array = np.array(p_array)
-        r_array = np.array(r_array)
+        x_array = np.array(x_array)
+        y_array = np.array(y_array)
         c_array = np.array(c_array)
         
-        if print_correlation:
-            pearson = scipy.stats.pearsonr(p_array, r_array)
-            spearman = scipy.stats.spearmanr(p_array, r_array)
-            print(id_name)
-            print("Pearson's r:", pearson)
-            print("Spearman's rho:", spearman)
-            print("\n")
+        if print_correlation: 
+            get_correlations(x_array, y_array)
         
+        bins = np.arange(1, 3, 0.3)
+        bins = 10**bins
         if colorbar_param in ["mass_0", "mass_peak"]:
             mask_9 = c_array<10
             mask_10 = (c_array>=10)*(c_array<11)
             mask_11 = c_array>=11
-            
-            p_bins = np.arange(1, 3, 0.3)
-            p_bins = 10**p_bins
                 
             for jm, (mask, color) in enumerate(zip([mask_9, mask_10], [myblue, myred])):
-                p_mask = p_array[mask]
-                r_mask = r_array[mask]
-                plot_median_relation(axs[i], p_bins, p_mask, r_mask, color=color)
+                x_mask = x_array[mask]
+                y_mask = y_array[mask]
+                plot_median_relation(axs[i], bins, x_mask, y_mask, color=color)
             
         else:
-            p_bins = np.arange(1, 3, 0.3)
-            p_bins = 10**p_bins
-            plot_median_relation(axs[i], p_bins, p_array, r_array, color='lightslategrey')
+            plot_median_relation(axs[i], bins, x_array, y_array, color='lightslategrey')
 
         file.close() 
                       
@@ -234,10 +252,9 @@ def plot_density_150pc_velocity(velocity:str="V_max", print_correlation=False, f
     fig, axs = plt.subplots(2, 3, sharex=True, sharey=False, figsize=(13, 8), dpi=200, facecolor='white')
     axs = axs.flatten()
     
-    p_bins = []
     for i, (id, id_name) in enumerate(IDs.items()):
         file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
-        v_array, r_array = [], []
+        x_array, y_array = [], []
         
         if i ==0:
             axs[i].text(16, 1e9,  fr'$\texttt{{{id_name}}}$', color='black', 
@@ -270,22 +287,17 @@ def plot_density_150pc_velocity(velocity:str="V_max", print_correlation=False, f
                         density_fit = 10**density_fit
                     
                     im = axs[i].scatter(x=vel, y=density_fit, marker='o', alpha=0.7, c='olivedrab', linewidths=0)
-                    v_array.append(vel)
-                    r_array.append(density_fit)
+                    x_array.append(vel)
+                    y_array.append(density_fit)
                   
-        v_array = np.array(v_array)
-        r_array = np.array(r_array)
+        x_array = np.array(x_array)
+        y_array = np.array(y_array)
         
-        if print_correlation:
-            pearson = scipy.stats.pearsonr(v_array, r_array)
-            spearman = scipy.stats.spearmanr(v_array, r_array)
-            print(id_name)
-            print("Pearson's r:", pearson)
-            print("Spearman's rho:", spearman)
-            print("\n")
+        if print_correlation: 
+            get_correlations(x_array, y_array)
         
-        v_bins = np.arange(10, 80, 5)
-        plot_median_relation(axs[i], v_bins, v_array, r_array, color='lightslategrey')
+        bins = np.arange(10, 80, 5)
+        plot_median_relation(axs[i], bins, x_array, y_array, color='lightslategrey')
 
         file.close() 
                       
@@ -312,6 +324,206 @@ def plot_density_150pc_velocity(velocity:str="V_max", print_correlation=False, f
     plt.show()
     
    
+##############################################################################
+### Max circular velocity / max circular velocity at peak plotting routine ###
+##############################################################################
+def plot_vmax_over_vpeak(colorbar_param, print_correlation=False, filename:str=None):
+    """E.g. Fig.2 in Robles and Bullock 2020"""
+    
+    print(f'Max circular velocity / max circular velocity at peak with {colorbar_param} colorbar!')
+
+    fig, axs = plt.subplots(2, 3, sharex=True, sharey=True, figsize=(13, 8), dpi=200, facecolor='white')
+    axs = axs.flatten()
+    cmap, norm = colorbar_args(colorbar_param)
+
+    for i, (id, id_name) in enumerate(IDs.items()):
+        file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
+        axs[i].text(10, 0.2, fr'$\texttt{{{id_name}}}$', color='black', 
+            bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'))
+
+        x_array, y_array, c_array = [], [], []
+        for idx in file.keys():
+            if file[f'{idx}'].attrs.get('subhalo_of') is not None:
+                subhalo_idx = idx
+
+                if np.log10(file[str(subhalo_idx)]['tree_data']['bound_mass_dm'][0]) > 9: # MINIMUM satellite mass = 10^9
+                    data_subhalo = file[f'{subhalo_idx}']
+                    pericenter = data_subhalo['tree_data']['pericenter'][1]
+                    z_accr_type_idx, accretion = data_subhalo['tree_data']['accretion']
+                    vmax = data_subhalo['tree_data']['Vmax'][0]
+                    vpeak = data_subhalo['tree_data']['Vmax'][int(z_accr_type_idx)]
+
+                    if colorbar_param == 'accretion':
+                        c = accretion
+                    elif colorbar_param == 'mass_0':
+                        mass_0 = data_subhalo['tree_data']['bound_mass_dm'][0] 
+                        c = np.log10(mass_0)
+                    elif colorbar_param == 'mass_peak':
+                        mass_peak = data_subhalo['tree_data']['bound_mass_dm'][int(z_accr_type_idx)]
+                        c = np.log10(mass_peak)
+                    
+                    p = pericenter[0] if pericenter.shape==(1,) else pericenter
+                    if p>6 and p<1.5e3:
+                        im = axs[i].scatter(x=pericenter, y=vmax/vpeak, marker='+', linewidths=1, norm=norm, c=c, cmap=cmap, alpha= 0.7 if colorbar_param in ["mass_0", "mass_peak"] else 0.9)
+                        x_array.append(p)
+                        c_array.append(c)
+                        y_array.append(vmax/vpeak)
+                  
+        x_array = np.array(x_array)
+        y_array = np.array(y_array)
+        c_array = np.array(c_array)
+            
+        if print_correlation:
+            get_correlations(x_array, y_array, id_name)
+            
+        bins = np.arange(1, 3, 0.3)
+        bins = 10**bins
+        if colorbar_param in ["mass_0", "mass_peak"]:
+            mask_9 = c_array<10
+            mask_10 = (c_array>=10)*(c_array<11)
+            mask_11 = c_array>=11
+                
+            for jm, (mask, color) in enumerate(zip([mask_9, mask_10], [myblue, myred])):
+                p_mask = x_array[mask]
+                r_mask = y_array[mask]
+                plot_median_relation(axs[i], bins, p_mask, r_mask, color=color)
+            
+        else:
+            if id_name == "CDM":
+                p_CDM = x_array
+                r_CDM = y_array
+                plot_median_relation(axs[i], bins, x_array, y_array, color='k')
+            else:
+                plot_median_relation(axs[i], bins, p_CDM, r_CDM, errorbars=False, color='k')
+                plot_median_relation(axs[i], bins, x_array, y_array, color='lightslategrey')
+
+        file.close() 
+           
+    # axis stuff
+    for ax in axs:
+        ax.set_xscale('log')
+        ax.set_xlim(6e0, 1.5e3)
+        ax.set_ylim(0, 2)
+        # ax.set_yticks([20, 40, 60, 80])
+
+    for axi in [3, 4, 5]:
+        axs[axi].set_xlabel(r'$r_{{p}}\ [\mathrm{kpc}]$')
+    for axi in [0, 3]:
+        axs[axi].set_ylabel(fr'$\mathrm{{V_{{max}}}}(z=0)/\mathrm{{V_{{peak}}}}$')
+
+    # colorbar stuff
+    cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.04)
+    if colorbar_param == "accretion":
+        cbar.ax.set_yticks([0, 1, 2]) 
+    elif colorbar_param in ["mass_0", "mass_peak"]:
+        cbar.ax.set_yticks([9, 10, 11, 12]) 
+
+    plt.subplots_adjust(hspace=0.1, wspace=0.1, right=.86)
+    if filename is not None:
+        fig.savefig(f"figures/{filename}.png",dpi=300)
+    plt.show()
+    
+    
+############################################
+### Vmax vs Rmax at z=0 plotting routine ###
+############################################
+def plot_vmax_vs_rmax(colorbar_param, print_correlation=False, filename:str=None):
+    """E.g. Fig.1 in Robles and Bullock 2020"""
+    
+    print(f'Vmax vs Rmax {colorbar_param} colorbar!')
+
+    fig, axs = plt.subplots(2, 3, sharex=True, sharey=True, figsize=(13, 8), dpi=200, facecolor='white')
+    axs = axs.flatten()
+    cmap, norm = colorbar_args(colorbar_param)
+
+    for i, (id, id_name) in enumerate(IDs.items()):
+        file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
+        axs[i].text(14, 18, fr'$\texttt{{{id_name}}}$', color='black', horizontalalignment='right',
+            bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'))
+
+        x_array, y_array, c_array = [], [], []
+        for idx in file.keys():
+            if file[f'{idx}'].attrs.get('subhalo_of') is not None:
+                subhalo_idx = idx
+
+                if np.log10(file[str(subhalo_idx)]['tree_data']['bound_mass_dm'][0]) > 9: # MINIMUM satellite mass = 10^9
+                    data_subhalo = file[f'{subhalo_idx}']
+                    z_accr_type_idx, accretion = data_subhalo['tree_data']['accretion']
+                    if 'Rmax' in data_subhalo['tree_data'].keys(): 
+                        x = data_subhalo['tree_data']['Rmax'][...]
+                    else: continue
+                    y = data_subhalo['tree_data']['Vmax'][0]
+
+                    if colorbar_param == 'accretion':
+                        c = accretion
+                    elif colorbar_param == 'mass_0':
+                        mass_0 = data_subhalo['tree_data']['bound_mass_dm'][0] 
+                        c = np.log10(mass_0)
+                    elif colorbar_param == 'mass_peak':
+                        mass_peak = data_subhalo['tree_data']['bound_mass_dm'][int(z_accr_type_idx)]
+                        c = np.log10(mass_peak)
+                    elif colorbar_param == 'pericenter':
+                        pericenter = data_subhalo['tree_data']['pericenter'][1]
+                        c = np.log10(pericenter[0] if pericenter.shape==(1,) else pericenter)
+            
+                    im = axs[i].scatter(x=x, y=y, marker='+', linewidths=1, norm=norm, c=c, cmap=cmap, alpha= 0.7 if colorbar_param in ["mass_0", "mass_peak"] else 0.9)
+                    x_array.append(x)
+                    y_array.append(y)
+                    c_array.append(c)
+                  
+        x_array = np.array(x_array)
+        y_array = np.array(y_array)
+        c_array = np.array(c_array)
+            
+        if print_correlation:
+            get_correlations(x_array, y_array, id_name)
+            
+        bins = np.arange(1, 15, 3)
+        if colorbar_param in ["mass_0", "mass_peak"]:
+            mask_9 = c_array<10
+            mask_10 = (c_array>=10)*(c_array<11)
+            mask_11 = c_array>=11
+            
+            for jm, (mask, color) in enumerate(zip([mask_9, mask_10], [myblue, myred])):
+                x_mask = x_array[mask]
+                y_mask = y_array[mask]
+                plot_median_relation(axs[i], bins, x_mask, y_mask, color=color)
+            
+        else:
+            if id_name == "CDM":
+                x_CDM = x_array
+                y_CDM = y_array
+                plot_median_relation(axs[i], bins, x_array, y_array, color='k')
+            else:
+                plot_median_relation(axs[i], bins, x_CDM, y_CDM, errorbars=False, color='k')
+                plot_median_relation(axs[i], bins, x_array, y_array, color='lightslategrey')
+
+        file.close() 
+           
+    # axis stuff
+    for ax in axs:
+        ax.set_xlim(1, 15)
+        ax.set_ylim(15, 65)
+        ax.set_yticks([20, 40, 60])
+
+    for axi in [3, 4, 5]:
+        axs[axi].set_xlabel(r'$\mathrm{r_{max}\ [kpc]}$')
+    for axi in [0, 3]:
+        axs[axi].set_ylabel(r'$\mathrm{V_{max}}(z=0) [\mathrm{\ km s^{-1}}]$')
+
+    # colorbar stuff
+    cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.04)
+    if colorbar_param == "accretion":
+        cbar.ax.set_yticks([0, 1, 2]) 
+    elif colorbar_param in ["mass_0", "mass_peak"]:
+        cbar.ax.set_yticks([9, 10, 11, 12]) 
+
+    plt.subplots_adjust(hspace=0.1, wspace=0.1, right=.86)
+    if filename is not None:
+        fig.savefig(f"figures/{filename}.png",dpi=300)
+    plt.show()
+ 
+ 
 #############################################################
 ### Circular velocity at fiducial radius plotting routine ###
 #############################################################
@@ -328,7 +540,7 @@ def plot_circular_velocity_fiducial_radius(colorbar_param, print_correlation=Fal
         axs[i].text(10, 78, fr'$\texttt{{{id_name}}}$', color='black', 
             bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'))
 
-        p_array, r_array, c_array = [], [], []
+        x_array, y_array, c_array = [], [], []
         for idx in file.keys():
             if file[f'{idx}'].attrs.get('subhalo_of') is not None:
                 subhalo_idx = idx
@@ -336,7 +548,6 @@ def plot_circular_velocity_fiducial_radius(colorbar_param, print_correlation=Fal
                 if np.log10(file[str(subhalo_idx)]['tree_data']['bound_mass_dm'][0]) > 9: # MINIMUM satellite mass = 10^9
                     data_subhalo = file[f'{subhalo_idx}']
                     pericenter = data_subhalo['tree_data']['pericenter'][1]
-                    fiducial_radius_rotation = data_subhalo['halo_data']['fiducial_radius_rotation'][:]
                     rotation_at_fiducial_radius = data_subhalo['halo_data']['rotation_at_fiducial_radius'][:]
                     z_accr_type_idx, accretion = data_subhalo['tree_data']['accretion']
 
@@ -352,46 +563,37 @@ def plot_circular_velocity_fiducial_radius(colorbar_param, print_correlation=Fal
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
                     if p>6 and p<1.5e3 and rotation_at_fiducial_radius[0]>3 and rotation_at_fiducial_radius[0]<100:
                         im = axs[i].scatter(x=pericenter, y=rotation_at_fiducial_radius, marker='+', linewidths=1, norm=norm, c=c, cmap=cmap, alpha= 0.7 if colorbar_param in ["mass_0", "mass_peak"] else 0.9)
-                        p_array.append(p)
+                        x_array.append(p)
                         c_array.append(c)
-                        r_array.append(rotation_at_fiducial_radius[0])
+                        y_array.append(rotation_at_fiducial_radius[0])
                   
-        p_array = np.array(p_array)
-        r_array = np.array(r_array)
+        x_array = np.array(x_array)
+        y_array = np.array(y_array)
         c_array = np.array(c_array)
         
         if print_correlation:
-            pearson = scipy.stats.pearsonr(p_array, r_array)
-            spearman = scipy.stats.spearmanr(p_array, r_array)
-            print(id_name)
-            print("Pearson's r:", pearson)
-            print("Spearman's rho:", spearman)
-            print("\n")
+            get_correlations(x_array, y_array, id_name)
             
+        bins = np.arange(1, 3, 0.3)
+        bins = 10**bins
         if colorbar_param in ["mass_0", "mass_peak"]:
             mask_9 = c_array<10
             mask_10 = (c_array>=10)*(c_array<11)
             mask_11 = c_array>=11
-            
-            p_bins = np.arange(1, 3, 0.3)
-            p_bins = 10**p_bins
                 
             for jm, (mask, color) in enumerate(zip([mask_9, mask_10], [myblue, myred])):
-                p_mask = p_array[mask]
-                r_mask = r_array[mask]
-                plot_median_relation(axs[i], p_bins, p_mask, r_mask, color=color)
+                x_mask = x_array[mask]
+                y_mask = y_array[mask]
+                plot_median_relation(axs[i], bins, x_mask, y_mask, color=color)
             
         else:
-            p_bins = np.arange(1, 3, 0.3)
-            p_bins = 10**p_bins
-
             if id_name == "CDM":
-                p_CDM = p_array
-                r_CDM = r_array
-                plot_median_relation(axs[i], p_bins, p_array, r_array, color='k')
+                x_CDM = x_array
+                y_CDM = y_array
+                plot_median_relation(axs[i], bins, x_array, y_array, color='k')
             else:
-                plot_median_relation(axs[i], p_bins, p_CDM, r_CDM, errorbars=False, color='k')
-                plot_median_relation(axs[i], p_bins, p_array, r_array, color='lightslategrey')
+                plot_median_relation(axs[i], bins, x_CDM, y_CDM, errorbars=False, color='k')
+                plot_median_relation(axs[i], bins, x_array, y_array, color='lightslategrey')
 
         file.close() 
            
@@ -436,7 +638,7 @@ def plot_circular_velocity_2kpc(colorbar_param, print_correlation=False, filenam
         axs[i].text(10, 78, fr'$\texttt{{{id_name}}}$', color='black', 
             bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'))
 
-        p_array, r_array, c_array = [], [], []
+        x_array, y_array, c_array = [], [], []
         for idx in file.keys():
             if file[f'{idx}'].attrs.get('subhalo_of') is not None:
                 subhalo_idx = idx
@@ -460,46 +662,37 @@ def plot_circular_velocity_2kpc(colorbar_param, print_correlation=False, filenam
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
                     if p>6 and p<1.5e3 and rotation_at_radius[0]>3 and rotation_at_radius[0]<100:
                         im = axs[i].scatter(x=pericenter, y=rotation_at_radius, marker='+', linewidths=1, norm=norm, c=c, cmap=cmap, alpha= 0.7 if colorbar_param in ["mass_0", "mass_peak"] else 0.9)
-                        p_array.append(p)
+                        x_array.append(p)
                         c_array.append(c)
-                        r_array.append(rotation_at_radius[0])
+                        y_array.append(rotation_at_radius[0])
                   
-        p_array = np.array(p_array)
-        r_array = np.array(r_array)
+        x_array = np.array(x_array)
+        y_array = np.array(y_array)
         c_array = np.array(c_array)
             
         if print_correlation:
-            pearson = scipy.stats.pearsonr(p_array, r_array)
-            spearman = scipy.stats.spearmanr(p_array, r_array)
-            print(id_name)
-            print("Pearson's r:", pearson)
-            print("Spearman's rho:", spearman)
-            print("\n")
+            get_correlations(x_array, y_array, id_name)
             
+        bins = np.arange(1, 3, 0.3)
+        bins = 10**bins
         if colorbar_param in ["mass_0", "mass_peak"]:
             mask_9 = c_array<10
             mask_10 = (c_array>=10)*(c_array<11)
             mask_11 = c_array>=11
             
-            p_bins = np.arange(1, 3, 0.3)
-            p_bins = 10**p_bins
-                
             for jm, (mask, color) in enumerate(zip([mask_9, mask_10], [myblue, myred])):
-                p_mask = p_array[mask]
-                r_mask = r_array[mask]
-                plot_median_relation(axs[i], p_bins, p_mask, r_mask, color=color)
+                x_mask = x_array[mask]
+                y_mask = y_array[mask]
+                plot_median_relation(axs[i], bins, x_mask, y_mask, color=color)
             
         else:
-            p_bins = np.arange(1, 3, 0.3)
-            p_bins = 10**p_bins
-
             if id_name == "CDM":
-                p_CDM = p_array
-                r_CDM = r_array
-                plot_median_relation(axs[i], p_bins, p_array, r_array, color='k')
+                x_CDM = x_array
+                y_CDM = y_array
+                plot_median_relation(axs[i], bins, x_array, y_array, color='k')
             else:
-                plot_median_relation(axs[i], p_bins, p_CDM, r_CDM, errorbars=False, color='k')
-                plot_median_relation(axs[i], p_bins, p_array, r_array, color='lightslategrey')
+                plot_median_relation(axs[i], bins, x_CDM, y_CDM, errorbars=False, color='k')
+                plot_median_relation(axs[i], bins, x_array, y_array, color='lightslategrey')
 
         file.close() 
            
@@ -527,113 +720,4 @@ def plot_circular_velocity_2kpc(colorbar_param, print_correlation=False, filenam
         fig.savefig(f"figures/{filename}.png",dpi=300)
     plt.show()
     
-    
-    
-##############################################################################
-### Max circular velocity / max circular velocity at peak plotting routine ###
-##############################################################################
-def plot_vmax_over_vpeak(colorbar_param, print_correlation=False, filename:str=None):
-    """E.g. Fig.2 in Robles and Bullock 2020"""
-    
-    print(f'Max circular velocity / max circular velocity at peak with {colorbar_param} colorbar!')
-
-    fig, axs = plt.subplots(2, 3, sharex=True, sharey=True, figsize=(13, 8), dpi=200, facecolor='white')
-    axs = axs.flatten()
-    cmap, norm = colorbar_args(colorbar_param)
-
-    for i, (id, id_name) in enumerate(IDs.items()):
-        file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
-        axs[i].text(10, 0.2, fr'$\texttt{{{id_name}}}$', color='black', 
-            bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'))
-
-        p_array, r_array, c_array = [], [], []
-        for idx in file.keys():
-            if file[f'{idx}'].attrs.get('subhalo_of') is not None:
-                subhalo_idx = idx
-
-                if np.log10(file[str(subhalo_idx)]['tree_data']['bound_mass_dm'][0]) > 9: # MINIMUM satellite mass = 10^9
-                    data_subhalo = file[f'{subhalo_idx}']
-                    pericenter = data_subhalo['tree_data']['pericenter'][1]
-                    z_accr_type_idx, accretion = data_subhalo['tree_data']['accretion']
-                    vmax = data_subhalo['tree_data']['Vmax'][0]
-                    vpeak = data_subhalo['tree_data']['Vmax'][int(z_accr_type_idx)]
-
-                    if colorbar_param == 'accretion':
-                        c = accretion
-                    elif colorbar_param == 'mass_0':
-                        mass_0 = data_subhalo['tree_data']['bound_mass_dm'][0] 
-                        c = np.log10(mass_0)
-                    elif colorbar_param == 'mass_peak':
-                        mass_peak = data_subhalo['tree_data']['bound_mass_dm'][int(z_accr_type_idx)]
-                        c = np.log10(mass_peak)
-                    
-                    p = pericenter[0] if pericenter.shape==(1,) else pericenter
-                    if p>6 and p<1.5e3:
-                        im = axs[i].scatter(x=pericenter, y=vmax/vpeak, marker='+', linewidths=1, norm=norm, c=c, cmap=cmap, alpha= 0.7 if colorbar_param in ["mass_0", "mass_peak"] else 0.9)
-                        p_array.append(p)
-                        c_array.append(c)
-                        r_array.append(vmax/vpeak)
-                  
-        p_array = np.array(p_array)
-        r_array = np.array(r_array)
-        c_array = np.array(c_array)
-            
-        if print_correlation:
-            pearson = scipy.stats.pearsonr(p_array, r_array)
-            spearman = scipy.stats.spearmanr(p_array, r_array)
-            print(id_name)
-            print("Pearson's r:", pearson)
-            print("Spearman's rho:", spearman)
-            print("\n")
-            
-        if colorbar_param in ["mass_0", "mass_peak"]:
-            mask_9 = c_array<10
-            mask_10 = (c_array>=10)*(c_array<11)
-            mask_11 = c_array>=11
-            
-            p_bins = np.arange(1, 3, 0.3)
-            p_bins = 10**p_bins
-                
-            for jm, (mask, color) in enumerate(zip([mask_9, mask_10], [myblue, myred])):
-                p_mask = p_array[mask]
-                r_mask = r_array[mask]
-                plot_median_relation(axs[i], p_bins, p_mask, r_mask, color=color)
-            
-        else:
-            p_bins = np.arange(1, 3, 0.3)
-            p_bins = 10**p_bins
-
-            if id_name == "CDM":
-                p_CDM = p_array
-                r_CDM = r_array
-                plot_median_relation(axs[i], p_bins, p_array, r_array, color='k')
-            else:
-                plot_median_relation(axs[i], p_bins, p_CDM, r_CDM, errorbars=False, color='k')
-                plot_median_relation(axs[i], p_bins, p_array, r_array, color='lightslategrey')
-
-        file.close() 
-           
-    # axis stuff
-    for ax in axs:
-        ax.set_xscale('log')
-        ax.set_xlim(6e0, 1.5e3)
-        ax.set_ylim(0, 2)
-        # ax.set_yticks([20, 40, 60, 80])
-
-    for axi in [3, 4, 5]:
-        axs[axi].set_xlabel(r'$r_{{p}}\ [\mathrm{kpc}]$')
-    for axi in [0, 3]:
-        axs[axi].set_ylabel(fr'$\mathrm{{V_{{max}}}}(z=0)/\mathrm{{V_{{peak}}}}$')
-
-    # colorbar stuff
-    cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.04)
-    if colorbar_param == "accretion":
-        cbar.ax.set_yticks([0, 1, 2]) 
-    elif colorbar_param in ["mass_0", "mass_peak"]:
-        cbar.ax.set_yticks([9, 10, 11, 12]) 
-
-    plt.subplots_adjust(hspace=0.1, wspace=0.1, right=.86)
-    if filename is not None:
-        fig.savefig(f"figures/{filename}.png",dpi=300)
-    plt.show()
-    
+       
