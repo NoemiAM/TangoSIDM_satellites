@@ -327,6 +327,105 @@ def plot_density_150pc_velocity(velocity:str="V_max", print_correlation=False, f
 ##############################################################################
 ### Max circular velocity / max circular velocity at peak plotting routine ###
 ##############################################################################
+def plot_vmax(colorbar_param, print_correlation=False, filename:str=None):
+    """Vmax rp"""
+    
+    print(f'Max circular velocity  with {colorbar_param} colorbar!')
+
+    fig, axs = plt.subplots(2, 3, sharex=True, sharey=True, figsize=(13, 8), dpi=200, facecolor='white')
+    axs = axs.flatten()
+    cmap, norm = colorbar_args(colorbar_param)
+
+    for i, (id, id_name) in enumerate(IDs.items()):
+        file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
+        axs[i].text(10, 14, fr'$\texttt{{{id_name}}}$', color='black', 
+            bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'))
+
+        x_array, y_array, c_array = [], [], []
+        for idx in file.keys():
+            if file[f'{idx}'].attrs.get('subhalo_of') is not None:
+                subhalo_idx = idx
+
+                if np.log10(file[str(subhalo_idx)]['tree_data']['bound_mass_dm'][0]) > 9: # MINIMUM satellite mass = 10^9
+                    data_subhalo = file[f'{subhalo_idx}']
+                    pericenter = data_subhalo['tree_data']['pericenter'][1]
+                    z_accr_type_idx, accretion = data_subhalo['tree_data']['accretion']
+                    vmax = data_subhalo['tree_data']['Vmax'][0]
+
+                    if colorbar_param == 'accretion':
+                        c = accretion
+                    elif colorbar_param == 'mass_0':
+                        mass_0 = data_subhalo['tree_data']['bound_mass_dm'][0] 
+                        c = np.log10(mass_0)
+                    elif colorbar_param == 'mass_peak':
+                        mass_peak = data_subhalo['tree_data']['bound_mass_dm'][int(z_accr_type_idx)]
+                        c = np.log10(mass_peak)
+                    
+                    p = pericenter[0] if pericenter.shape==(1,) else pericenter
+                    if p>6 and p<1.5e3:
+                        im = axs[i].scatter(x=pericenter, y=vmax, marker='+', linewidths=1, norm=norm, c=c, cmap=cmap, alpha= 0.7 if colorbar_param in ["mass_0", "mass_peak"] else 0.9)
+                        x_array.append(p)
+                        c_array.append(c)
+                        y_array.append(vmax)
+                  
+        x_array = np.array(x_array)
+        y_array = np.array(y_array)
+        c_array = np.array(c_array)
+            
+        if print_correlation:
+            get_correlations(x_array, y_array, id_name)
+            
+        bins = np.arange(1, 3, 0.3)
+        bins = 10**bins
+        if colorbar_param in ["mass_0", "mass_peak"]:
+            mask_9 = c_array<10
+            mask_10 = (c_array>=10)*(c_array<11)
+            mask_11 = c_array>=11
+                
+            for jm, (mask, color) in enumerate(zip([mask_9, mask_10], [myblue, myred])):
+                p_mask = x_array[mask]
+                r_mask = y_array[mask]
+                plot_median_relation(axs[i], bins, p_mask, r_mask, color=color)
+            
+        else:
+            if id_name == "CDM":
+                p_CDM = x_array
+                r_CDM = y_array
+                plot_median_relation(axs[i], bins, x_array, y_array, color='k')
+            else:
+                plot_median_relation(axs[i], bins, p_CDM, r_CDM, errorbars=False, color='k')
+                plot_median_relation(axs[i], bins, x_array, y_array, color='lightslategrey')
+
+        file.close() 
+           
+    # axis stuff
+    for ax in axs:
+        ax.set_xscale('log')
+        ax.set_xlim(6e0, 1.5e3)
+        ax.set_ylim(10, 80)
+        ax.set_yticks([20, 40, 60, 80])
+
+    for axi in [3, 4, 5]:
+        axs[axi].set_xlabel(r'$r_{{p}}\ [\mathrm{kpc}]$')
+    for axi in [0, 3]:
+        axs[axi].set_ylabel(fr'$\mathrm{{V_{{max}}}}(z=0)$')
+
+    # colorbar stuff
+    cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.04)
+    if colorbar_param == "accretion":
+        cbar.ax.set_yticks([0, 1, 2]) 
+    elif colorbar_param in ["mass_0", "mass_peak"]:
+        cbar.ax.set_yticks([9, 10, 11, 12]) 
+
+    plt.subplots_adjust(hspace=0.1, wspace=0.1, right=.86)
+    if filename is not None:
+        fig.savefig(f"figures/{filename}.png",dpi=300)
+    plt.show()
+    
+
+##############################################################################
+### Max circular velocity / max circular velocity at peak plotting routine ###
+##############################################################################
 def plot_vmax_over_vpeak(colorbar_param, print_correlation=False, filename:str=None):
     """E.g. Fig.2 in Robles and Bullock 2020"""
     
