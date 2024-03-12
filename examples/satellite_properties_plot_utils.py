@@ -74,7 +74,7 @@ def get_correlations(x_array, y_array, id_name):
 ###########################
 
 COLORBAR_DICT = {
-    "accretion" : r'$z_\mathrm{accretion}$',
+    "accretion" : r'$z_\mathrm{infall}$',
     "mass_0" : r'$\log_{10}\mathrm{M_{bound}}$ $\mathrm{[M_\odot]}$',
     "mass_peak" : r'$\log_{10}\mathrm{M_{peak}}$ $\mathrm{[M_\odot]}$',
     "v_peak" : r'$\mathrm{V_{peak}}$ $\mathrm{[km\ s^{-1}]}$',
@@ -101,7 +101,7 @@ def colorbar_args(colorbar_param):
         norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=((vmax+vmin)/2), vmax=vmax)
     
     elif colorbar_param == 'v_peak':
-        vmin, vmax = 15, 70
+        vmin, vmax = 15, 50
         cmap = matplotlib.cm.YlGnBu
         norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=((vmax+vmin)/2), vmax=vmax)
         
@@ -235,7 +235,7 @@ def plot_density_150pc(colorbar_param, print_correlation=False, filename:str=Non
     for axi in [3, 4, 5]:
         axs[axi].set_xlabel(r'$r_{{p}}\ [\mathrm{kpc}]$')
     for axi in [0, 3]:
-        axs[axi].set_ylabel(r'$\rho(150\ \mathrm{pc})\ [\mathrm{M}_\odot \ \mathrm{kpc}^3]$')
+        axs[axi].set_ylabel(r'$\rho(150\ \mathrm{pc})\ [\mathrm{M}_\odot \ \mathrm{kpc}^{-3}]$')
                 
     # colorbar stuff
     cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.04)
@@ -331,7 +331,7 @@ def plot_density_150pc_velocity(velocity:str="V_max", print_correlation=False, f
         elif velocity == "v_max": xlabel= fr'$\mathrm{{V_{{max}}(z=0)}}$ $\mathrm{{[km\ s^{{-1}}]}}$'
         axs[axi].set_xlabel(xlabel)
     for axi in [0, 3]:
-        axs[axi].set_ylabel(r'$\rho(150\ \mathrm{pc})\ [\mathrm{M}_\odot \ \mathrm{kpc}^3]$')
+        axs[axi].set_ylabel(r'$\rho(150\ \mathrm{pc})\ [\mathrm{M}_\odot \ \mathrm{kpc}^{-3}]$')
 
     # colorbar stuff
     if velocity in ["v_max", "v_peak"]:
@@ -427,7 +427,7 @@ def plot_vmax(colorbar_param, print_correlation=False, filename:str=None):
     for axi in [3, 4, 5]:
         axs[axi].set_xlabel(r'$r_{{p}}\ [\mathrm{kpc}]$')
     for axi in [0, 3]:
-        axs[axi].set_ylabel(fr'$\mathrm{{V_{{max}}}}(z=0)$')
+        axs[axi].set_ylabel(r'$\mathrm{V_{max}(z=0)}$ $\mathrm{[km\ s^{-1}]}$')
 
     # colorbar stuff
     cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.04)
@@ -525,8 +525,7 @@ def plot_vpeak(colorbar_param, print_correlation=False, filename:str=None):
     for axi in [3, 4, 5]:
         axs[axi].set_xlabel(r'$r_{{p}}\ [\mathrm{kpc}]$')
     for axi in [0, 3]:
-        axs[axi].set_ylabel(fr'$\mathrm{{V_{{peak}}}}(z=0)$')
-
+        axs[axi].set_ylabel(r'$\mathrm{V_{peak}}$ $\mathrm{[km\ s^{-1}]}$')
     # colorbar stuff
     cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.04)
     if colorbar_param == "accretion":
