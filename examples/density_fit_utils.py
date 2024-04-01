@@ -18,6 +18,17 @@ def log_prior_iso(theta):
 
     return log_prior
 
+def log_prior_core_nfw(theta):
+    """
+    The natural logarithm of the prior probability.
+    It sets prior to 1 (log prior to 0) if params are in range, and zero (-inf) otherwise.
+    Args: theta (tuple): a sample containing individual parameter values
+    """
+    log10_M200, rc, n = theta
+    log_prior = -np.inf
+    if 0.001 < rc < 100 and 6 < log10_M200 < 16 and -5 < n < 5 : log_prior = 0.0
+
+    return log_prior
 
 def log_prior_nfw(theta):
     """
@@ -31,6 +42,19 @@ def log_prior_nfw(theta):
 
     return log_prior
 
+def log_posterior_core_nfw(theta, x, y, yerr):
+    """
+    The natural logarithm of the joint posterior.
+    Args:
+        theta (tuple): a sample containing individual parameter values
+        x (array): values over which the data/model is defined
+        y (array): the set of data
+        yerr (array): the standard deviation of the data points
+    """
+    lp = log_prior_core_nfw(theta)
+    if not np.isfinite(lp):
+        return -np.inf
+    return lp + log_likelihood_core_nfw(theta, x, y, yerr)
 
 def log_posterior_iso(theta, x, y, yerr):
     """
@@ -61,6 +85,20 @@ def log_posterior_nfw(theta, x, y, yerr):
         return -np.inf
     return lp + log_likelihood_nfw(theta, x, y, yerr)
 
+def log_likelihood_core_nfw(theta, x, y, yerr):
+    """
+    The natural logarithm of the joint likelihood.
+    Args:
+        theta (tuple): a sample containing individual parameter values
+        x (array): values over which the data/model is defined
+        y (array): the set of data
+        yerr (array): the standard deviation of the data points
+    """
+    log10_M200, rc, n = theta
+    model = fit_core_nfw_model(x, log10_M200, rc, n)
+    sigma2 = yerr**2
+    log_l = -0.5 * np.sum((y - model) ** 2 / sigma2)
+    return log_l
 
 def log_likelihood_iso(theta, x, y, yerr):
     """
@@ -93,6 +131,57 @@ def log_likelihood_nfw(theta, x, y, yerr):
     log_l = -0.5 * np.sum((y - model) ** 2 / sigma2)
     return log_l
 
+def c_M_relation(log10_M0):
+    """
+    Concentration-mass relation from Correa et al. (2015).
+    This relation is most suitable for Planck cosmology.
+    """
+    z = 0
+    # Best-fit params:
+    alpha = 1.7543 - 0.2766 * (1. + z) + 0.02039 * (1. + z) ** 2
+    beta = 0.2753 + 0.0035 * (1. + z) - 0.3038 * (1. + z) ** 0.0269
+    gamma = -0.01537 + 0.02102 * (1. + z) ** (-0.1475)
+
+    log_10_c200 = alpha + beta * log10_M0 * (1. + gamma * log10_M0 ** 2)
+    c200 = 10 ** log_10_c200
+    return c200
+
+def calculate_R200(log10_M200):
+    """
+    General definition of R200 for z=0
+    """
+    z = 0
+    Om = 0.309
+    Ol = 1. - Om
+    rhocrit0 = 2.775e11 * 0.6777 ** 2 / (1e3) ** 3  # Msun/kpc^3
+    rho_crit = rhocrit0 * (Om * (1. + z) ** 3 + Ol)
+    R200 = 10**log10_M200 / (4. * np.pi * 200 * rho_crit / 3.)
+    R200 = R200 ** (1. / 3.)  # kpc
+    return R200
+
+def fit_core_nfw_model(xdata, log10_M200, rc, n):
+    """
+    CoreNFW profile introduced by Read et al. (2019).
+    The free parameters correspond to the total halo mass, M200,
+    defined as for an NFW profile. The core size radius, rc,
+    and the logarithmic slope n
+    """
+    c = c_M_relation(log10_M200)
+    R200 = calculate_R200(log10_M200)
+
+    gc = 1./ (np.log(1. +c) - c/(1.+c))
+    rhocrit = 2.775e11 * 0.6777 ** 2 / (1e3) ** 3  # Msun/kpc^3
+    rhos = 200 * rhocrit * c**3 * gc / 3.
+
+    rs =  R200 / c
+    rho_nfw = rhos / ((r / rs) * (1. + r / rs)**2)
+
+    M_nfw = 10**log10_M200 * gc * (np.log(1. + r/rs) - (r/rs) / (1. + r/rs))
+    f = ( np.tanh(r / rc) )
+
+    rho = f**n * rho_nfw
+    rho += n * f**(n-1.) * (1.-f**2) * M_nfw / (4. * np.pi * r**2 * rc)
+    return np.log10(rho)
 
 def diff_isothermal_equation(f,x,n):
     """
