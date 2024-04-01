@@ -11,8 +11,8 @@ Kaplinghat_data = pd.read_csv(GAIA_PATH+"Kaplinghat_2019.csv").to_numpy()
 dSph = Kaplinghat_data[:,0]
 dSph = dSph[::2]
 num_satellites = len(dSph)
-r_p_Isolated = np.zeros(num_satellites) # Reading pericenter assuming isolated MW
-r_p_LMC = np.zeros(num_satellites)      # Reading pericenter assuming MW perturbed by LMC
+r_p_Isolated = np.zeros(num_satellites)  # Reading pericenter assuming isolated MW
+r_p_LMC = np.zeros(num_satellites)       # Reading pericenter assuming MW perturbed by LMC
 rho_150pc_K19 = np.zeros(num_satellites) # Reading Kaplinghat+ 2019 determination under NFW
 
 for i, dSphi in enumerate(dSph):
