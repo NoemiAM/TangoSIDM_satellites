@@ -6,6 +6,18 @@ from scipy.integrate import odeint
 from scipy.interpolate import interp1d
 
 
+def log_prior_core_nfw(theta):
+    """
+    The natural logarithm of the prior probability.
+    It sets prior to 1 (log prior to 0) if params are in range, and zero (-inf) otherwise.
+    Args: theta (tuple): a sample containing individual parameter values
+    """
+    log10_M200, rc, n = theta
+    log_prior = -np.inf
+    if 7 < log10_M200 < 13 and 0.001 < rc < 100 and 0 < n < 1 : log_prior = 0.0
+    return log_prior
+
+
 def log_prior_iso(theta):
     """
     The natural logarithm of the prior probability.
@@ -18,17 +30,6 @@ def log_prior_iso(theta):
 
     return log_prior
 
-def log_prior_core_nfw(theta):
-    """
-    The natural logarithm of the prior probability.
-    It sets prior to 1 (log prior to 0) if params are in range, and zero (-inf) otherwise.
-    Args: theta (tuple): a sample containing individual parameter values
-    """
-    log10_M200, rc, n = theta
-    log_prior = -np.inf
-    if 0.001 < rc < 100 and 6 < log10_M200 < 16 and -5 < n < 5 : log_prior = 0.0
-
-    return log_prior
 
 def log_prior_nfw(theta):
     """
@@ -41,6 +42,7 @@ def log_prior_nfw(theta):
     if 0.001 < r0 < 10 and 3 < rho0 < 10 : log_prior = 0.0
 
     return log_prior
+
 
 def log_posterior_core_nfw(theta, x, y, yerr):
     """
@@ -55,6 +57,7 @@ def log_posterior_core_nfw(theta, x, y, yerr):
     if not np.isfinite(lp):
         return -np.inf
     return lp + log_likelihood_core_nfw(theta, x, y, yerr)
+
 
 def log_posterior_iso(theta, x, y, yerr):
     """
@@ -85,6 +88,7 @@ def log_posterior_nfw(theta, x, y, yerr):
         return -np.inf
     return lp + log_likelihood_nfw(theta, x, y, yerr)
 
+
 def log_likelihood_core_nfw(theta, x, y, yerr):
     """
     The natural logarithm of the joint likelihood.
@@ -99,6 +103,7 @@ def log_likelihood_core_nfw(theta, x, y, yerr):
     sigma2 = yerr**2
     log_l = -0.5 * np.sum((y - model) ** 2 / sigma2)
     return log_l
+
 
 def log_likelihood_iso(theta, x, y, yerr):
     """
@@ -131,6 +136,7 @@ def log_likelihood_nfw(theta, x, y, yerr):
     log_l = -0.5 * np.sum((y - model) ** 2 / sigma2)
     return log_l
 
+
 def c_M_relation(log10_M0):
     """
     Concentration-mass relation from Correa et al. (2015).
@@ -146,6 +152,7 @@ def c_M_relation(log10_M0):
     c200 = 10 ** log_10_c200
     return c200
 
+
 def calculate_R200(log10_M200):
     """
     General definition of R200 for z=0
@@ -159,6 +166,7 @@ def calculate_R200(log10_M200):
     R200 = R200 ** (1. / 3.)  # kpc
     return R200
 
+
 def fit_core_nfw_model(xdata, log10_M200, rc, n):
     """
     CoreNFW profile introduced by Read et al. (2019).
@@ -166,22 +174,38 @@ def fit_core_nfw_model(xdata, log10_M200, rc, n):
     defined as for an NFW profile. The core size radius, rc,
     and the logarithmic slope n
     """
+    
     c = c_M_relation(log10_M200)
     R200 = calculate_R200(log10_M200)
-
     gc = 1./ (np.log(1. +c) - c/(1.+c))
     rhocrit = 2.775e11 * 0.6777 ** 2 / (1e3) ** 3  # Msun/kpc^3
     rhos = 200 * rhocrit * c**3 * gc / 3.
-
     rs =  R200 / c
-    rho_nfw = rhos / ((r / rs) * (1. + r / rs)**2)
 
-    M_nfw = 10**log10_M200 * gc * (np.log(1. + r/rs) - (r/rs) / (1. + r/rs))
-    f = ( np.tanh(r / rc) )
+    xrange = np.arange(-3, 3, 0.01)
+    xrange = 10**xrange
+    xrange = xrange / rs
+    
+    rho_nfw = rhos / (xrange * (1. + xrange)**2)
+    M_nfw = 10**log10_M200 * gc * (np.log(1. + xrange) - xrange / (1. + xrange))
+    f = (np.tanh(xrange * rs / rc))
 
-    rho = f**n * rho_nfw
-    rho += n * f**(n-1.) * (1.-f**2) * M_nfw / (4. * np.pi * r**2 * rc)
-    return np.log10(rho)
+    sol = f**n * rho_nfw
+    sol +=  n * f**(n-1.) * (1.-f**2) * M_nfw / (4. * np.pi * (xrange * rs)**2 * rc)
+    yrange = np.log10(sol)
+
+    finterpolate = interp1d(xrange, yrange)
+    x = xdata / rs
+
+    max_x = 1e6
+    if len(x) > 1: max_x = np.max(x)
+    else: max_x = x
+    if rs<=0 or max_x>1e5 : return 0
+
+    ydata = finterpolate(x)
+    f = ydata
+    return f
+
 
 def diff_isothermal_equation(f,x,n):
     """
@@ -235,6 +259,31 @@ def fit_nfw_model(xdata, a, b):
     return f
 
 
+def run_mcmc_core_nfw(x, y, yerr, soln):
+
+    pos = soln.x + 1e-4 * np.random.randn(32, 2)
+    nwalkers, ndim = pos.shape
+
+    with Pool() as pool:
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior_core_nfw, args=(x, y, yerr), pool=pool)
+        start = time.time()
+        sampler.run_mcmc(pos, 5000, progress=True)
+        end = time.time()
+        multi_time = end - start
+        print("Multiprocessing took {0:.1f} minutes".format(multi_time / 60))
+
+    samples = sampler.get_chain(discard=100, thin=15, flat=True)
+    log10_M200 = np.median(samples[:, 0])
+    rc = np.median(samples[:, 1])
+    n = np.median(samples[:, 2])
+    sigma_log10_M200 = np.std(samples[:, 0])
+    sigma_rc = np.std(samples[:, 1])
+    sigma_n = np.std(samples[:, 2])
+
+    print("Mean autocorrelation time: {0:.3f} steps".format(np.mean(sampler.get_autocorr_time(quiet=True))))
+    return sampler, log10_M200, rc, n, sigma_log10_M200, sigma_rc, sigma_n
+
+
 def run_mcmc_iso(x, y, yerr, soln):
 
     pos = soln.x + 1e-4 * np.random.randn(32, 2)
@@ -251,9 +300,11 @@ def run_mcmc_iso(x, y, yerr, soln):
     samples = sampler.get_chain(discard=100, thin=15, flat=True)
     r0 = np.median(samples[:, 0])
     rho0 = np.median(samples[:, 1])
+    sigma_r0 = np.std(samples[:, 0])
+    sigma_rho0 = np.std(samples[:, 1])
 
     print("Mean autocorrelation time: {0:.3f} steps".format(np.mean(sampler.get_autocorr_time(quiet=True))))
-    return sampler, r0, rho0
+    return sampler, r0, rho0, sigma_r0, sigma_rho0
 
 
 def run_mcmc_nfw(x, y, yerr, soln):
@@ -272,6 +323,8 @@ def run_mcmc_nfw(x, y, yerr, soln):
     samples = sampler.get_chain(discard=100, thin=15, flat=True)
     r0 = np.median(samples[:, 0])
     rho0 = np.median(samples[:, 1])
+    sigma_r0 = np.std(samples[:, 0])
+    sigma_rho0 = np.std(samples[:, 1])
 
     print("Mean autocorrelation time: {0:.3f} steps".format(np.mean(sampler.get_autocorr_time(quiet=True))))
-    return sampler, r0, rho0
+    return sampler, r0, rho0, sigma_r0, sigma_rho0
