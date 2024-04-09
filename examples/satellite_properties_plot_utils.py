@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import h5py
 import numpy as np
 import scipy
-from density_fit_utils import fit_isothermal_model, fit_nfw_model
+from density_profile_fit_utils import fit_isothermal_model, fit_nfw_model
 
 ######################
 ### Data utilities ###
