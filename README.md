@@ -1,6 +1,6 @@
 # TangoSIDM: the evolution of satellite halos
 
-Code and data repository for [Anau Montel and Correa (2024)](https://arxiv.org/abs/2401.xxxxx).
+Code and data repository for TBD
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-red.svg)](https://opensource.org/licenses/MIT)
 [![arXiv](https://img.shields.io/badge/arXiv-2401.xxxxx%20-green.svg)](https://arxiv.org/abs/2401.xxxxx)
@@ -18,10 +18,7 @@ The repository contains:
 If you use this code and the data in your analysis, please use the following citations:
 
 ```
-@article{anaumontel2024,
-  title={TangoSIDM: the evolution of satellite halos},
-  author={Anau Montel, Noemi and Correa, Camila},
-  journal={arXiv preprint arXiv:2401.xxxxx},
+@article{TBD
   year={2024}
 }
 ```
