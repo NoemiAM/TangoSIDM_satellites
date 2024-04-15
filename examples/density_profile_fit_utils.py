@@ -270,7 +270,7 @@ def run_mcmc_core_nfw(x, y, yerr, soln):
         sampler.run_mcmc(pos, 5000, progress=True)
         end = time.time()
         multi_time = end - start
-        print("Multiprocessing took {0:.1f} minutes".format(multi_time / 60))
+        # print("Multiprocessing took {0:.1f} minutes".format(multi_time / 60))
 
     samples = sampler.get_chain(discard=100, thin=15, flat=True)
     log10_M200 = np.median(samples[:, 0])
@@ -280,7 +280,7 @@ def run_mcmc_core_nfw(x, y, yerr, soln):
     sigma_rc = np.std(samples[:, 1])
     sigma_n = np.std(samples[:, 2])
 
-    print("Mean autocorrelation time: {0:.3f} steps".format(np.mean(sampler.get_autocorr_time(quiet=True))))
+    # print("Mean autocorrelation time: {0:.3f} steps".format(np.mean(sampler.get_autocorr_time(quiet=True))))
     return sampler, log10_M200, rc, n, sigma_log10_M200, sigma_rc, sigma_n
 
 
@@ -295,7 +295,7 @@ def run_mcmc_iso(x, y, yerr, soln):
         sampler.run_mcmc(pos, 5000, progress=True)
         end = time.time()
         multi_time = end - start
-        print("Multiprocessing took {0:.1f} minutes".format(multi_time / 60))
+        # print("Multiprocessing took {0:.1f} minutes".format(multi_time / 60))
 
     samples = sampler.get_chain(discard=100, thin=15, flat=True)
     r0 = np.median(samples[:, 0])
@@ -303,7 +303,7 @@ def run_mcmc_iso(x, y, yerr, soln):
     sigma_r0 = np.std(samples[:, 0])
     sigma_rho0 = np.std(samples[:, 1])
 
-    print("Mean autocorrelation time: {0:.3f} steps".format(np.mean(sampler.get_autocorr_time(quiet=True))))
+    # print("Mean autocorrelation time: {0:.3f} steps".format(np.mean(sampler.get_autocorr_time(quiet=True))))
     return sampler, r0, rho0, sigma_r0, sigma_rho0
 
 
@@ -318,7 +318,7 @@ def run_mcmc_nfw(x, y, yerr, soln):
         sampler.run_mcmc(pos, 5000, progress=True)
         end = time.time()
         multi_time = end - start
-        print("Multiprocessing took {0:.1f} minutes".format(multi_time / 60))
+        # print("Multiprocessing took {0:.1f} minutes".format(multi_time / 60))
 
     samples = sampler.get_chain(discard=100, thin=15, flat=True)
     r0 = np.median(samples[:, 0])
@@ -326,5 +326,5 @@ def run_mcmc_nfw(x, y, yerr, soln):
     sigma_r0 = np.std(samples[:, 0])
     sigma_rho0 = np.std(samples[:, 1])
 
-    print("Mean autocorrelation time: {0:.3f} steps".format(np.mean(sampler.get_autocorr_time(quiet=True))))
+    # print("Mean autocorrelation time: {0:.3f} steps".format(np.mean(sampler.get_autocorr_time(quiet=True))))
     return sampler, r0, rho0, sigma_r0, sigma_rho0
