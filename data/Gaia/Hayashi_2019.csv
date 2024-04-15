@@ -1,0 +1,9 @@
+Galaxy,MsoverM200,LowErrorMsoverM200,HighErrorMsoverM200,rho150pc,LowErrorrho150pc,HighErrorrho150pc
+Ant2,2.8e-4,2e-4,4e-4,6.4,0.3,0.3
+Cra2,1.2e-4,7e-5,1.8e-4,6.8,0.4,0.4
+CVn1,8e-5,5e-5,1.3e-4,7.9,0.3,0.2
+Eri2,3e-5,1.8e-5,4.5e-5,8.2,0.2,0.3
+Boo1,2.5e-5,1.5e-5,4e-5,8.0,0.3,0.3
+CB,7.5e-6,4e-6,1.3e-5,8.4,0.4,0.3
+Will1,3.5e-6,2e-6,6e-6,8.1,1.1,0.6
+Seg1,2e-6,9e-7,4e-6,7.9,1.6,0.7
