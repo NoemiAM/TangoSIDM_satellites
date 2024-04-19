@@ -37,11 +37,11 @@ rho_0 = 2.556 Vmax^2 / (G Rmax^2)
 sigma_0 = 0.63 Vmax
 
 
-### Hayashi_2019.csv 
-
-
-
 ### Read_2019.csv 
+Data compiled from Table 1 from [Read et al. 2019](https://arxiv.org/abs/1808.06634). Each row indicates the name of the dSph galaxy. The three columns correspond to $M_{200}$ in units of $[M_\odot]$ with the 50th (-16th,+84th) percentiles.
+
+
+### Hayashi_2019.csv 
 
 
 
