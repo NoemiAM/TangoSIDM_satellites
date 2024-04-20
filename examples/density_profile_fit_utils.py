@@ -14,7 +14,7 @@ def log_prior_core_nfw(theta):
     """
     log10_M200, rc, n = theta
     log_prior = -np.inf
-    if 7 < log10_M200 < 13 and 0.001 < rc < 100 and 0 < n < 1 : log_prior = 0.0
+    if 7 < log10_M200 < 12 and 0.01 < rc < 10 and 0 < n < 1 : log_prior = 0.0
     return log_prior
 
 
@@ -261,7 +261,7 @@ def fit_nfw_model(xdata, a, b):
 
 def run_mcmc_core_nfw(x, y, yerr, soln):
 
-    pos = soln.x + 1e-4 * np.random.randn(32, 2)
+    pos = soln.x + 1e-4 * np.random.randn(32, 3)
     nwalkers, ndim = pos.shape
 
     with Pool() as pool:

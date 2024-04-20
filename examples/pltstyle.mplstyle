@@ -75,7 +75,7 @@ hist.bins              : 10
 # The font.size property is the default font size for text, given in pts.
 # 12pt is the standard value.
 #
-# font.family         : Times
+font.family         : Times
 font.style          : normal
 font.variant        : small-caps
 font.weight         : normal

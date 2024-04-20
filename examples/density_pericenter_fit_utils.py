@@ -21,7 +21,7 @@ def log_prior(theta):
     """
     q, m = theta
     log_prior = -np.inf
-    if -15 < q < 15 and -15 < m < 15 : log_prior = 0.0
+    if -2 < q < 2 and -2 < m < 2 : log_prior = 0.0
     return log_prior
 
 
@@ -96,7 +96,7 @@ def run_mcmc(x, y, xerr, yerr, soln):
     with Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior, args=(x, y, xerr, yerr))
         start = time.time()
-        sampler.run_mcmc(pos, 1000, progress=True)
+        sampler.run_mcmc(pos, 2000, progress=True)
         end = time.time()
         multi_time = end - start
         print("Multiprocessing took {0:.1f} minutes".format(multi_time / 60))
@@ -114,14 +114,14 @@ def run_mcmc_sim(x, y, yerr, soln):
     with Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior_sim, args=(x, y, yerr))
         start = time.time()
-        sampler.run_mcmc(pos, 1000, progress=True)
+        sampler.run_mcmc(pos, 2000, progress=True)
         end = time.time()
         multi_time = end - start
-        print("Multiprocessing took {0:.1f} minutes".format(multi_time / 60))
+        # print("Multiprocessing took {0:.1f} minutes".format(multi_time / 60))
 
     samples = sampler.get_chain(discard=100, thin=15, flat=True)
 
-    print("Mean autocorrelation time: {0:.3f} steps".format(np.mean(sampler.get_autocorr_time(quiet=True))))
+    # print("Mean autocorrelation time: {0:.3f} steps".format(np.mean(sampler.get_autocorr_time(quiet=True))))
     return samples
 
 
@@ -159,7 +159,8 @@ def run_best_fit_for_sim(r_p, rho_150pc):
     np.random.seed(42)
     nl = lambda *args: -log_likelihood_sim(*args)
     initial = np.array([1, 0])
-    soln = minimize(nl, initial, args=(x, y, yerr))
+    bounds = ((-2, 2), (-2, 2))
+    soln = minimize(nl, initial, args=(x, y, yerr), bounds=bounds)
     q, m = soln.x
     # print('=======')
     # print(q, m)
@@ -180,7 +181,8 @@ def run_best_fit_for_sim_with_mcmc(r_p, rho_150pc):
     np.random.seed(42)
     nl = lambda *args: -log_likelihood_sim(*args)
     initial = np.array([1, 0])
-    soln = minimize(nl, initial, args=(x, y, yerr))
+    bounds = ((-2, 2), (-2, 2))
+    soln = minimize(nl, initial, args=(x, y, yerr), bounds=bounds)
     q, m = soln.x
     samples = run_mcmc_sim(x, y, yerr, soln)
     return samples

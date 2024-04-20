@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import h5py
 import numpy as np
 import scipy
-from density_profile_fit_utils import fit_isothermal_model, fit_nfw_model
+from density_profile_fit_utils import fit_isothermal_model, fit_nfw_model, fit_core_nfw_model
 
 ######################
 ### Data utilities ###
@@ -39,8 +39,8 @@ def plot_median_relation(ax, bins, x, y, errorbars=True, color='grey'):
     indx = np.digitize(x, bins)
     p_bins_medians = np.array([np.median(x[indx == idx]) for idx in np.arange(num_bins) if len(x[indx==idx])>5])
     r_bins_medians = np.array([np.median(y[indx == idx]) for idx in np.arange(num_bins) if len(x[indx==idx])>5])
-    ax.plot(p_bins_medians, r_bins_medians, lw=3, color='white')
-    ax.plot(p_bins_medians, r_bins_medians, color=color, lw=2.5)
+    ax.plot(p_bins_medians, r_bins_medians, lw=2.5, color='white')
+    ax.plot(p_bins_medians, r_bins_medians, color=color, lw=2)
     
     if errorbars:
         r_bins_16 = np.array([np.percentile(y[indx == idx], 16) for idx in np.arange(num_bins) if len(x[indx==idx])>5])
@@ -129,11 +129,11 @@ def colorbar_args(colorbar_param):
 ##################################################################
 ### Density at 150pc versus pericenter radius plotting routine ###
 ##################################################################
-def plot_density_150pc(colorbar_param, print_correlation=False, filename:str=None, zoom=True):
+def plot_density_150pc(colorbar_param, profile='NFW', print_correlation=False, filename:str=None):
     
-    print(f'Plotting density at 150pc versus pericenter distance with {colorbar_param} colorbar!')
+    print(f'Plotting {profile} density at 150pc versus pericenter distance with {colorbar_param} colorbar!')
 
-    fig, axs = plt.subplots(2, 3, sharex=True, sharey=zoom, figsize=(13, 8), dpi=200, facecolor='white')
+    fig, axs = plt.subplots(2, 3, sharex=True, sharey=True, figsize=(13, 8), dpi=200, facecolor='white')
     axs = axs.flatten()
     cmap, norm = colorbar_args(colorbar_param)
     
@@ -142,17 +142,9 @@ def plot_density_150pc(colorbar_param, print_correlation=False, filename:str=Non
         x_array, y_array, c_array = [], [], []
         
         # Position labels
-        if zoom:
-            axs[i].text(8, 5e8,  fr'$\texttt{{{id_name}}}$', color='black', 
-                bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2')) #, horizontalalignment='right')
-        else:
-            if i ==0:
-                axs[i].text(1e3, 2e7,  fr'$\texttt{{{id_name}}}$', color='black', 
-                    bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'), horizontalalignment='right')
-            else:
-                axs[i].text(1e3, 2e6,  fr'$\texttt{{{id_name}}}$', color='black', 
-                    bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'), horizontalalignment='right')
-        
+        axs[i].text(0.1, 0.1,  fr'$\texttt{{{id_name}}}$', color='black', transform=axs[i].transAxes,
+            bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2')) #, horizontalalignment='right')
+                    
         for idx in file.keys():
             if file[f'{idx}'].attrs.get('subhalo_of') is not None:
                 subhalo_idx = idx
@@ -162,14 +154,20 @@ def plot_density_150pc(colorbar_param, print_correlation=False, filename:str=Non
                     pericenter = data_subhalo['tree_data']['pericenter'][1]
                     z_accr_type_idx, accretion = data_subhalo['tree_data']['accretion']
                     
-                    if id_name == "CDM":
-                        r0, rho0 = data_subhalo['halo_data']['nfw_fit']
+                    if profile == "NFW":
+                        r0, rho0, _, _ = data_subhalo['halo_data']['nfw_fit']
                         density_fit = fit_nfw_model(np.array([0.15]), r0, rho0)
                         density_fit = 10**density_fit
-                    else:
-                        r0, rho0 = data_subhalo['halo_data']['iso_fit']
+                    elif profile == "core-NFW":
+                        log10_M200, rc, n, _, _, _ = data_subhalo['halo_data']['core_nfw_fit']
+                        density_fit = fit_core_nfw_model(np.array([0.15]*2), log10_M200, rc, n)[0]
+                        density_fit = 10**density_fit
+                    elif profile == "ISO":
+                        r0, rho0, _, _ = data_subhalo['halo_data']['iso_fit']
                         density_fit = fit_isothermal_model(np.array([0.15]*2), r0, rho0)[0]
                         density_fit = 10**density_fit
+                    else:
+                        print("Wrong profile key! Choose between 'NFW', 'core-NFW', 'ISO'.")
 
                     if colorbar_param == 'accretion':
                         c = accretion
@@ -188,7 +186,7 @@ def plot_density_150pc(colorbar_param, print_correlation=False, filename:str=Non
                         else: continue
                     
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
-                    if p>6 and p<1.5e3:
+                    if p>6 and p<1.5e3: # cleanup
                         im = axs[i].scatter(x=pericenter, y=density_fit, marker='o',linewidths=0, norm=norm, c=c, cmap=cmap, alpha= 0.7)
                         x_array.append(p)
                         y_array.append(density_fit)
@@ -222,15 +220,13 @@ def plot_density_150pc(colorbar_param, print_correlation=False, filename:str=Non
     for i, ax in enumerate(axs):
         ax.set_xscale('log')
         ax.set_yscale('log')
-        if zoom:
-            ax.set_xlim(6e0, 1e3)
-            ax.set_ylim(1e6, 1e9)
-        else: 
-            ax.set_xlim(6e0, 1e3)
-            if i ==0:
-                ax.set_ylim(1e7, 2e9)
-            else:
-                ax.set_ylim(1e6, 1e9)
+        ax.set_xlim(10, 500)
+        if profile == "NFW":
+            ax.set_ylim(1e7, 1e9)
+        elif profile == "core-NFW":
+            ax.set_ylim(5e6, 1e9)
+        elif profile == "ISO":
+            ax.set_ylim(1e6, 3e8)
             
     for axi in [3, 4, 5]:
         axs[axi].set_xlabel(r'$r_{{p}}\ [\mathrm{kpc}]$')
@@ -238,18 +234,16 @@ def plot_density_150pc(colorbar_param, print_correlation=False, filename:str=Non
         axs[axi].set_ylabel(r'$\rho(150\ \mathrm{pc})\ [\mathrm{M}_\odot \ \mathrm{kpc}^{-3}]$')
                 
     # colorbar stuff
-    cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.04)
+    cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.03)
     if colorbar_param == "accretion":
         cbar.ax.set_yticks([0, 1, 2]) 
     elif colorbar_param in ["mass_0", "mass_peak"]:
         cbar.ax.set_yticks([9, 10, 11, 12]) 
 
-    if zoom:
-        plt.subplots_adjust(hspace=0.1, wspace=0.1, right=.86)
-    else:
-        plt.subplots_adjust(hspace=0.2, wspace=0.2, right=.86)
+    # plt.subplots_adjust(hspace=0.2, wspace=0.2, right=.86)
+    plt.subplots_adjust(hspace=0.1, wspace=0.1, right=.86)
     if filename is not None:
-        fig.savefig(f"figures/{filename}.png", dpi=300, transparent=True)
+        fig.savefig(f"figures/{profile}_{filename}.png", dpi=300, transparent=True)
     plt.show()
     
  
@@ -257,9 +251,9 @@ def plot_density_150pc(colorbar_param, print_correlation=False, filename:str=Non
 ##############################################################################################
 ### Density at 150pc versus velocity  (V_max(z=0), V_peak, V(r_fiducial)) plotting routine ###
 ##############################################################################################
-def plot_density_150pc_velocity(velocity:str="V_max", print_correlation=False, filename:str=None):
+def plot_density_150pc_velocity(velocity:str="V_max", profile='NFW', print_correlation=False, filename:str=None):
     
-    print(f'Plotting density at 150pc versus velocity {velocity}!')
+    print(f'Plotting {profile} density at 150pc versus velocity {velocity}!')
 
     fig, axs = plt.subplots(2, 3, sharex=True, sharey=True, figsize=(13, 8), dpi=200, facecolor='white')
     axs = axs.flatten()
@@ -268,9 +262,9 @@ def plot_density_150pc_velocity(velocity:str="V_max", print_correlation=False, f
         file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
         x_array, y_array, c_array = [], [], []
         
-        axs[i].text(16, 5e8,  fr'$\texttt{{{id_name}}}$', color='black', 
-                bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2')) #, horizontalalignment='right')
-        
+        axs[i].text(0.1, 0.85,  fr'$\texttt{{{id_name}}}$', color='black', transform=axs[i].transAxes,
+            bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2')) #, horizontalalignment='right')
+                 
         for idx in file.keys():
             if file[f'{idx}'].attrs.get('subhalo_of') is not None:
                 subhalo_idx = idx
@@ -284,14 +278,20 @@ def plot_density_150pc_velocity(velocity:str="V_max", print_correlation=False, f
                     elif velocity == "v_max": vel = data_subhalo['tree_data']['Vmax'][0]
                     else: print("Wrong velocity key! Choose between 'v_max', 'v_peak'.")
                     
-                    if id_name == "CDM":
-                        r0, rho0 = data_subhalo['halo_data']['nfw_fit']
+                    if profile == "NFW":
+                        r0, rho0, _, _ = data_subhalo['halo_data']['nfw_fit']
                         density_fit = fit_nfw_model(np.array([0.15]), r0, rho0)
                         density_fit = 10**density_fit
-                    else:
-                        r0, rho0 = data_subhalo['halo_data']['iso_fit']
+                    elif profile == "core-NFW":
+                        log10_M200, rc, n, _, _, _ = data_subhalo['halo_data']['core_nfw_fit']
+                        density_fit = fit_core_nfw_model(np.array([0.15]*2), log10_M200, rc, n)[0]
+                        density_fit = 10**density_fit
+                    elif profile == "ISO":
+                        r0, rho0, _, _ = data_subhalo['halo_data']['iso_fit']
                         density_fit = fit_isothermal_model(np.array([0.15]*2), r0, rho0)[0]
                         density_fit = 10**density_fit
+                    else:
+                        print("Wrong profile key! Choose between 'NFW', 'core-NFW', 'ISO'.")
                         
                     if velocity == 'v_max':
                         colorbar_param = 'v_peak'
@@ -322,9 +322,14 @@ def plot_density_150pc_velocity(velocity:str="V_max", print_correlation=False, f
     # axis stuff
     for i, ax in enumerate(axs):
         ax.set_yscale('log')
-        ax.set_ylim(1e6, 1e9)
         ax.set_xlim(10, 70)
         ax.set_xticks([10, 30, 50, 70])
+        if profile == "NFW":
+            ax.set_ylim(1e7, 1e9)
+        elif profile == "core-NFW":
+            ax.set_ylim(5e6, 1e9)
+        elif profile == "ISO":
+            ax.set_ylim(1e6, 3e8)
             
     for axi in [3, 4, 5]:
         if velocity == "v_peak" : xlabel = fr'$\mathrm{{V_{{peak}}}}$ $\mathrm{{[km\ s^{{-1}}]}}$'
@@ -335,11 +340,11 @@ def plot_density_150pc_velocity(velocity:str="V_max", print_correlation=False, f
 
     # colorbar stuff
     if velocity in ["v_max", "v_peak"]:
-        cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.04)
+        cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.03)
         
-    plt.subplots_adjust(hspace=0.2, wspace=0.2, right=.86)
+    plt.subplots_adjust(hspace=0.1, wspace=0.1, right=.86)
     if filename is not None:
-        fig.savefig(f"figures/{filename}.png", dpi=300, transparent=True)
+        fig.savefig(f"figures/{profile}_{filename}.png", dpi=300, transparent=True)
     plt.show()
     
    
@@ -357,9 +362,10 @@ def plot_vmax(colorbar_param, print_correlation=False, filename:str=None):
 
     for i, (id, id_name) in enumerate(IDs.items()):
         file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
-        axs[i].text(10, 14, fr'$\texttt{{{id_name}}}$', color='black', 
-            bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'))
-
+        
+        axs[i].text(0.1, 0.85,  fr'$\texttt{{{id_name}}}$', color='black', transform=axs[i].transAxes,
+            bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2')) #, horizontalalignment='right')
+       
         x_array, y_array, c_array = [], [], []
         for idx in file.keys():
             if file[f'{idx}'].attrs.get('subhalo_of') is not None:
@@ -420,7 +426,7 @@ def plot_vmax(colorbar_param, print_correlation=False, filename:str=None):
     # axis stuff
     for ax in axs:
         ax.set_xscale('log')
-        ax.set_xlim(6e0, 1.5e3)
+        ax.set_xlim(10, 500)
         ax.set_ylim(10, 80)
         ax.set_yticks([20, 40, 60, 80])
 
@@ -430,7 +436,7 @@ def plot_vmax(colorbar_param, print_correlation=False, filename:str=None):
         axs[axi].set_ylabel(r'$\mathrm{V_{max}(z=0)}$ $\mathrm{[km\ s^{-1}]}$')
 
     # colorbar stuff
-    cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.04)
+    cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.03)
     if colorbar_param == "accretion":
         cbar.ax.set_yticks([0, 1, 2]) 
     elif colorbar_param in ["mass_0", "mass_peak"]:
@@ -455,9 +461,9 @@ def plot_vpeak(colorbar_param, print_correlation=False, filename:str=None):
 
     for i, (id, id_name) in enumerate(IDs.items()):
         file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
-        axs[i].text(10, 14, fr'$\texttt{{{id_name}}}$', color='black', 
-            bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'))
-
+        axs[i].text(0.1, 0.85,  fr'$\texttt{{{id_name}}}$', color='black', transform=axs[i].transAxes,
+            bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2')) #, horizontalalignment='right')
+       
         x_array, y_array, c_array = [], [], []
         for idx in file.keys():
             if file[f'{idx}'].attrs.get('subhalo_of') is not None:
@@ -518,7 +524,7 @@ def plot_vpeak(colorbar_param, print_correlation=False, filename:str=None):
     # axis stuff
     for ax in axs:
         ax.set_xscale('log')
-        ax.set_xlim(6e0, 1.5e3)
+        ax.set_xlim(10, 500)
         ax.set_ylim(10, 80)
         ax.set_yticks([20, 40, 60, 80])
 
@@ -527,7 +533,7 @@ def plot_vpeak(colorbar_param, print_correlation=False, filename:str=None):
     for axi in [0, 3]:
         axs[axi].set_ylabel(r'$\mathrm{V_{peak}}$ $\mathrm{[km\ s^{-1}]}$')
     # colorbar stuff
-    cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.04)
+    cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.03)
     if colorbar_param == "accretion":
         cbar.ax.set_yticks([0, 1, 2]) 
     elif colorbar_param in ["mass_0", "mass_peak"]:
@@ -617,7 +623,7 @@ def plot_vmax_over_vpeak(colorbar_param, print_correlation=False, filename:str=N
     # axis stuff
     for ax in axs:
         ax.set_xscale('log')
-        ax.set_xlim(6e0, 1.5e3)
+        ax.set_xlim(10, 500)
         ax.set_ylim(0, 2)
         # ax.set_yticks([20, 40, 60, 80])
 
@@ -627,7 +633,7 @@ def plot_vmax_over_vpeak(colorbar_param, print_correlation=False, filename:str=N
         axs[axi].set_ylabel(fr'$\mathrm{{V_{{max}}}}(z=0)/\mathrm{{V_{{peak}}}}$')
 
     # colorbar stuff
-    cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.04)
+    cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.03)
     if colorbar_param == "accretion":
         cbar.ax.set_yticks([0, 1, 2]) 
     elif colorbar_param in ["mass_0", "mass_peak"]:
@@ -638,101 +644,148 @@ def plot_vmax_over_vpeak(colorbar_param, print_correlation=False, filename:str=N
         fig.savefig(f"figures/{filename}.png", dpi=300, transparent=True)
     plt.show()
  
-#############################################################
-### Circular velocity at fiducial radius plotting routine ###
-#############################################################
-def plot_circular_velocity_fiducial_radius(colorbar_param, print_correlation=False, filename:str=None):
-    
-    print(f'Plotting circular velocity at fiducial radius versus pericenter distance with {colorbar_param} colorbar!')
+ 
+ 
+#############################################################################
+### VERTICAL - Density at 150pc versus pericenter radius plotting routine ###
+#############################################################################
 
-    fig, axs = plt.subplots(2, 3, sharex=True, sharey=True, figsize=(13, 8), dpi=200, facecolor='white')
+def plot_density_150pc_vertical(colorbar_param:str, profile='NFW', filename:str=None, max10:bool=False):
+
+    print(f'Plotting {profile} density at 150pc versus pericenter distance with {colorbar_param} colorbar!')
+
+    fig, axs = plt.subplots(2, 1, sharex=True, sharey=True, figsize=(5, 12), dpi=200, facecolor='white')
     axs = axs.flatten()
-    cmap, norm = colorbar_args(colorbar_param)
 
-    for i, (id, id_name) in enumerate(IDs.items()):
-        file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
-        axs[i].text(10, 78, fr'$\texttt{{{id_name}}}$', color='black', 
-            bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'))
-
-        x_array, y_array, c_array = [], [], []
-        for idx in file.keys():
-            if file[f'{idx}'].attrs.get('subhalo_of') is not None:
-                subhalo_idx = idx
-
-                if np.log10(file[str(subhalo_idx)]['tree_data']['bound_mass_dm'][0]) > 9: # MINIMUM satellite mass = 10^9
-                    data_subhalo = file[f'{subhalo_idx}']
-                    pericenter = data_subhalo['tree_data']['pericenter'][1]
-                    rotation_at_fiducial_radius = data_subhalo['halo_data']['rotation_at_fiducial_radius'][:]
-                    z_accr_type_idx, accretion = data_subhalo['tree_data']['accretion']
-
-                    if colorbar_param == 'accretion':
-                        c = accretion
-                    elif colorbar_param == 'mass_0':
-                        mass_0 = data_subhalo['tree_data']['bound_mass_dm'][0] 
-                        c = np.log10(mass_0)
-                    elif colorbar_param == 'mass_peak':
-                        mass_peak = data_subhalo['tree_data']['bound_mass_dm'][int(z_accr_type_idx)]
-                        c = np.log10(mass_peak)
-                    
-                    p = pericenter[0] if pericenter.shape==(1,) else pericenter
-                    if p>6 and p<1.5e3 and rotation_at_fiducial_radius[0]>3 and rotation_at_fiducial_radius[0]<100:
-                        im = axs[i].scatter(x=pericenter, y=rotation_at_fiducial_radius, marker='o', linewidths=0, norm=norm, c=c, cmap=cmap, alpha= 0.7)
-                        x_array.append(p)
-                        c_array.append(c)
-                        y_array.append(rotation_at_fiducial_radius[0])
-                  
-        x_array = np.array(x_array)
-        y_array = np.array(y_array)
-        c_array = np.array(c_array)
-        
-        if print_correlation:
-            get_correlations(x_array, y_array, id_name)
-            
-        bins = np.arange(1, 3, 0.3)
-        bins = 10**bins
-        if colorbar_param in ["mass_0", "mass_peak"]:
-            mask_9 = c_array<10
-            mask_10 = (c_array>=10)*(c_array<11)
-            mask_11 = c_array>=11
+    for j, (id, id_name) in enumerate(IDs.items()):
+        if id_name in ["CDM", "SigmaVel100"]:
+            if id_name == "CDM": i =0
+            elif id_name == "SigmaVel100": i =1
                 
-            for jm, (mask, color) in enumerate(zip([mask_9, mask_10], [myblue, myred])):
-                x_mask = x_array[mask]
-                y_mask = y_array[mask]
-                plot_median_relation(axs[i], bins, x_mask, y_mask, color=color)
-            
-        else:
-            if id_name == "CDM":
-                x_CDM = x_array
-                y_CDM = y_array
-                plot_median_relation(axs[i], bins, x_array, y_array, color='k')
+            p_array, r_array, c_array = [], [], []
+
+            # Position labels
+            if profile == "ISO":
+                axs[i].text(13, 1.5e8,  fr'$\texttt{{{id_name}}}$', color='black', 
+                    bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2')) #, horizontalalignment='right')
             else:
-                plot_median_relation(axs[i], bins, x_CDM, y_CDM, errorbars=False, color='k')
-                plot_median_relation(axs[i], bins, x_array, y_array, color='grey')
+                axs[i].text(13, 6e8,  fr'$\texttt{{{id_name}}}$', color='black', 
+                        bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2')) #, horizontalalignment='right')
+     
+            file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
+            for idx in file.keys():
+                if file[f'{idx}'].attrs.get('main_halo_of') is not None:
+                    halo_idx = idx
+                    data_halo = file[f'{halo_idx}']
+                    subhalos_idxs = file[f'{halo_idx}'].attrs.get('main_halo_of')
 
+                    if max10: r = min(len(subhalos_idxs), 10)
+                    else: r = len(subhalos_idxs)
+                    
+                    for subhalo in range(r):
+                        subhalo_idx = subhalos_idxs[subhalo]
+                        data_subhalo = file[f'{subhalo_idx}']
+
+                        if np.log10(data_subhalo['tree_data']['bound_mass_dm'][0]) > 9: # MINIMUM satellite mass = 10^9
+                            pericenter = data_subhalo['tree_data']['pericenter'][1]
+                            z_accr_type_idx, accretion = data_subhalo['tree_data']['accretion']
+
+                            if profile == "NFW":
+                                r0, rho0, _, _ = data_subhalo['halo_data']['nfw_fit']
+                                density_fit = fit_nfw_model(np.array([0.15]), r0, rho0)
+                                density_fit = 10**density_fit
+                            elif profile == "core-NFW":
+                                log10_M200, rc, n, _, _, _ = data_subhalo['halo_data']['core_nfw_fit']
+                                density_fit = fit_core_nfw_model(np.array([0.15]*2), log10_M200, rc, n)[0]
+                                density_fit = 10**density_fit
+                            elif profile == "ISO":
+                                r0, rho0, _, _ = data_subhalo['halo_data']['iso_fit']
+                                density_fit = fit_isothermal_model(np.array([0.15]*2), r0, rho0)[0]
+                                density_fit = 10**density_fit
+                            else:
+                                print("Wrong profile key! Choose between 'NFW', 'core-NFW', 'ISO'.")
+
+
+                            if colorbar_param == 'accretion':
+                                c = accretion
+                                cmap, norm = colorbar_args(colorbar_param)
+                            elif colorbar_param == 'mass_0':
+                                mass_0 = data_subhalo['tree_data']['bound_mass_dm'][0] 
+                                c = np.log10(mass_0)
+                                mycmap = matplotlib.cm.RdYlBu
+                                myblue = mycmap(0.9)
+                                myred =  mycmap(0.1)
+                                vmin, vmax = 9, 12
+                                cmap = matplotlib.colors.ListedColormap(['olivedrab', myblue, 'peru', myred, 'darkorchid', 'midnightblue'])
+                                norm = matplotlib.colors.TwoSlopeNorm(vmin=9, vcenter=9.6, vmax=12)
+                                # cmap =  matplotlib.colors.ListedColormap(matplotlib.cm.Blues(np.linspace(0.2, 1, 6)))
+                                #cmap, norm = colorbar_args(colorbar_param)
+                            elif colorbar_param == 'mass_peak':
+                                mass_peak = data_subhalo['tree_data']['bound_mass_dm'][int(z_accr_type_idx)]
+                                c = np.log10(mass_peak)
+                                mycmap = matplotlib.cm.RdYlBu
+                                myblue = mycmap(0.9)
+                                myred =  mycmap(0.1)
+                                vmin, vmax = 9, 12
+                                cmap = matplotlib.colors.ListedColormap(['olivedrab', myblue, 'peru', myred, 'darkorchid', 'midnightblue'])
+                                norm = matplotlib.colors.TwoSlopeNorm(vmin=9, vcenter=9.6, vmax=12)
+                                # cmap, norm = colorbar_args(colorbar_param)
+                            elif colorbar_param == 'mass_parent':
+                                mass_parent = data_halo['tree_data']['bound_mass_dm'][0] 
+                                c = np.log10(mass_parent)
+                                vmin, vmax = np.log10(6e11), np.log10(2e12)
+                                cmap =  matplotlib.colors.ListedColormap(matplotlib.cm.Blues(np.linspace(0.2, 1, 5)))
+                                norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=((vmax+vmin)/2), vmax=vmax)
+
+                            p = pericenter[0] if pericenter.shape==(1,) else pericenter
+                            if p>6 and p<1.5e3:
+                                im = axs[i].scatter(x=pericenter, y=density_fit, marker='o', linewidths=0,  
+                                                    c=c, cmap=cmap, norm=norm, alpha=0.7)
+                                p_array.append(p)
+                                r_array.append(density_fit)
+                                c_array.append(c)
+
+            p_array = np.array(p_array)
+            r_array = np.array(r_array)
+            c_array = np.array(c_array)
+            #Let's add median trends..
+            p_bins = np.arange(1, 3, 0.3)
+            p_bins = 10**p_bins
+            plot_median_relation(axs[i], p_bins, p_array, r_array, color='grey')
+            
         file.close() 
-           
+
     # axis stuff
-    for ax in axs:
+    for i, ax in enumerate(axs):
         ax.set_xscale('log')
-        ax.set_xlim(6e0, 1.5e3)
-        ax.set_ylim(5, 90)
-        ax.set_yticks([20, 40, 60, 80])
+        ax.set_yscale('log')
+        ax.set_xlim(10, 500)
+        ax.set_ylabel(r'$\rho(150\ \mathrm{pc})\ [\mathrm{M}_\odot \ \mathrm{kpc}^{-3}]$')
 
-    for axi in [3, 4, 5]:
-        axs[axi].set_xlabel(r'$r_{{p}}\ [\mathrm{kpc}]$')
-    for axi in [0, 3]:
-        axs[axi].set_ylabel(fr'$\mathrm{{V_{{circ}}}}(r_\mathrm{{fid}})\ [\mathrm{{km/s}}]$')
-
-    # colorbar stuff
-    cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], aspect=40, fraction=0.02, pad=0.04)
-    if colorbar_param == "accretion":
-        cbar.ax.set_yticks([0, 1, 2])  
-    elif colorbar_param in ["mass_0", "mass_peak"]:
-        cbar.ax.set_yticks([9, 10, 11, 12]) 
-
-    plt.subplots_adjust(hspace=0.1, wspace=0.1, right=.86)
-    if filename is not None:
-        fig.savefig(f"figures/{filename}.png", dpi=300, transparent=True)
-    plt.show()
+    axs[1].set_xlabel(r'$r_{{p}}\ [\mathrm{kpc}]$')
+    for ax in axs:
+        if profile == "NFW":
+            ax.set_ylim(1e7, 1e9)
+        elif profile == "core-NFW":
+            ax.set_ylim(5e6, 1e9)
+        elif profile == "ISO":
+            ax.set_ylim(1e6, 3e8)
     
+    # colorbar stuff
+    if colorbar_param == "accretion":
+        cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], location='top')
+        cbar.ax.set_xticks([0, 1, 2]) 
+        cbar.set_label(COLORBAR_DICT[colorbar_param], labelpad=7)
+    elif colorbar_param in ["mass_0", "mass_peak"]:
+        cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=COLORBAR_DICT[colorbar_param], location='top')
+        cbar.ax.set_xticks([9, 9.2, 9.4, 9.6, 10.4, 11.2, 12]) 
+        cbar.set_label(COLORBAR_DICT[colorbar_param], labelpad=7)
+    elif colorbar_param == "mass_parent":
+        cbar = fig.colorbar(im, ax=axs.ravel().tolist(), label=fr'$\log_{{10}}\mathrm{{M_{{200c, central}}}}$ $\mathrm{{[M_\odot]}}$',
+                        location='top')
+        cbar.set_label(COLORBAR_DICT[colorbar_param], labelpad=7)
         
+    plt.subplots_adjust(hspace=0.075, top=0.75)
+    if filename is not None:
+        fig.savefig(f"figures/{profile}_{filename}.png", dpi=300, transparent=True)
+    plt.show()
