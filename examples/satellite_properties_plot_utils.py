@@ -187,7 +187,7 @@ def plot_density_150pc(colorbar_param, profile='NFW', print_correlation=False, f
                     
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
                     if p>6 and p<1.5e3: # cleanup
-                        im = axs[i].scatter(x=pericenter, y=density_fit, marker='o',linewidths=0, norm=norm, c=c, cmap=cmap, alpha= 0.7)
+                        im = axs[i].scatter(x=pericenter, y=density_fit, marker='o',linewidths=0, norm=norm, c=c, cmap=cmap, alpha= 0.8)
                         x_array.append(p)
                         y_array.append(density_fit)
                         c_array.append(c)
@@ -302,7 +302,7 @@ def plot_density_150pc_velocity(velocity:str="V_max", profile='NFW', print_corre
                         c = data_subhalo['tree_data']['Vmax'][0]
                         cmap, norm = colorbar_args('v_max')
                     
-                    im = axs[i].scatter(x=vel, y=density_fit, marker='o',linewidths=0, norm=norm, c=c, cmap=cmap, alpha= 0.7)
+                    im = axs[i].scatter(x=vel, y=density_fit, marker='o',linewidths=0, norm=norm, c=c, cmap=cmap, alpha=0.8)
                     x_array.append(vel)
                     y_array.append(density_fit)
                     c_array.append(c)
@@ -388,7 +388,7 @@ def plot_vmax(colorbar_param, print_correlation=False, filename:str=None):
                     
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
                     if p>6 and p<1.5e3:
-                        im = axs[i].scatter(x=pericenter, y=vmax, marker='o', linewidths=0, norm=norm, c=c, cmap=cmap, alpha= 0.7)
+                        im = axs[i].scatter(x=pericenter, y=vmax, marker='o', linewidths=0, norm=norm, c=c, cmap=cmap, alpha=0.8)
                         x_array.append(p)
                         c_array.append(c)
                         y_array.append(vmax)
@@ -486,7 +486,7 @@ def plot_vpeak(colorbar_param, print_correlation=False, filename:str=None):
                     
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
                     if p>6 and p<1.5e3:
-                        im = axs[i].scatter(x=pericenter, y=vpeak, marker='o', linewidths=0, norm=norm, c=c, cmap=cmap, alpha= 0.7)
+                        im = axs[i].scatter(x=pericenter, y=vpeak, marker='o', linewidths=0, norm=norm, c=c, cmap=cmap, alpha=0.8)
                         x_array.append(p)
                         c_array.append(c)
                         y_array.append(vpeak)
@@ -559,15 +559,18 @@ def plot_vmax_over_vpeak(colorbar_param, print_correlation=False, filename:str=N
 
     for i, (id, id_name) in enumerate(IDs.items()):
         file = h5py.File(DATA_PATH+f"{id}.hdf5", "r")
-        axs[i].text(1e3, 0.2, fr'$\texttt{{{id_name}}}$', color='black', 
+        axs[i].text(400, 0.2, fr'$\texttt{{{id_name}}}$', color='black', 
             bbox=dict(facecolor='silver', edgecolor='none', alpha=0.4, boxstyle='round, pad=0.2'), horizontalalignment='right')
 
         x_array, y_array, c_array = [], [], []
         for idx in file.keys():
             if file[f'{idx}'].attrs.get('subhalo_of') is not None:
                 subhalo_idx = idx
+                data_subhalo = file[f'{subhalo_idx}']
+                z_accr_type_idx, accretion = data_subhalo['tree_data']['accretion']
 
-                if np.log10(file[str(subhalo_idx)]['tree_data']['bound_mass_dm'][0]) > 9: # MINIMUM satellite mass = 10^9
+                # if np.log10(file[str(subhalo_idx)]['tree_data']['bound_mass_dm'][0]) > 9: # MINIMUM satellite mass = 10^9
+                if np.log10(file[str(subhalo_idx)]['tree_data']['bound_mass_dm'][0]) > 9 and np.log10(file[str(subhalo_idx)]['tree_data']['bound_mass_dm'][int(z_accr_type_idx)]) > 9: # MINIMUM satellite mass = 10^9
                     data_subhalo = file[f'{subhalo_idx}']
                     pericenter = data_subhalo['tree_data']['pericenter'][1]
                     z_accr_type_idx, accretion = data_subhalo['tree_data']['accretion']
@@ -580,12 +583,14 @@ def plot_vmax_over_vpeak(colorbar_param, print_correlation=False, filename:str=N
                         mass_0 = data_subhalo['tree_data']['bound_mass_dm'][0] 
                         c = np.log10(mass_0)
                     elif colorbar_param == 'mass_peak':
+                        cmap = matplotlib.cm.YlGnBu_r
+                        norm = matplotlib.colors.TwoSlopeNorm(vmin=9, vcenter=9.5, vmax=12)        
                         mass_peak = data_subhalo['tree_data']['bound_mass_dm'][int(z_accr_type_idx)]
                         c = np.log10(mass_peak)
                     
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
-                    if p>6 and p<1.5e3:
-                        im = axs[i].scatter(x=pericenter, y=vmax/vpeak, marker='o', linewidths=0, norm=norm, c=c, cmap=cmap, alpha= 0.7)
+                    if p>6 and p<1e3:
+                        im = axs[i].scatter(x=pericenter, y=vmax/vpeak, marker='o', linewidths=0, norm=norm, c=c, cmap=cmap, alpha=0.8)
                         x_array.append(p)
                         c_array.append(c)
                         y_array.append(vmax/vpeak)
@@ -593,30 +598,32 @@ def plot_vmax_over_vpeak(colorbar_param, print_correlation=False, filename:str=N
         x_array = np.array(x_array)
         y_array = np.array(y_array)
         c_array = np.array(c_array)
-            
         if print_correlation:
             get_correlations(x_array, y_array, id_name)
             
         bins = np.arange(1, 3, 0.3)
         bins = 10**bins
-        if colorbar_param in ["mass_0", "mass_peak"]:
-            mask_9 = c_array<10
-            mask_10 = (c_array>=10)*(c_array<11)
-            mask_11 = c_array>=11
+        
+        plot_median_relation(axs[i], bins, x_array, y_array, color='grey')
+
+        # if colorbar_param in ["mass_0", "mass_peak"]:
+        #     mask_9 = c_array<10
+        #     mask_10 = (c_array>=10)*(c_array<11)
+        #     mask_11 = c_array>=11
                 
-            for jm, (mask, color) in enumerate(zip([mask_9, mask_10], [myblue, myred])):
-                p_mask = x_array[mask]
-                r_mask = y_array[mask]
-                plot_median_relation(axs[i], bins, p_mask, r_mask, color=color)
+        #     for jm, (mask, color) in enumerate(zip([mask_9, mask_10], [myblue, myred])):
+        #         p_mask = x_array[mask]
+        #         r_mask = y_array[mask]
+        #         plot_median_relation(axs[i], bins, p_mask, r_mask, color=color)
             
-        else:
-            if id_name == "CDM":
-                p_CDM = x_array
-                r_CDM = y_array
-                plot_median_relation(axs[i], bins, x_array, y_array, color='k')
-            else:
-                plot_median_relation(axs[i], bins, p_CDM, r_CDM, errorbars=False, color='k')
-                plot_median_relation(axs[i], bins, x_array, y_array, color='grey')
+        # else:
+        #     if id_name == "CDM":
+        #         p_CDM = x_array
+        #         r_CDM = y_array
+        #         plot_median_relation(axs[i], bins, x_array, y_array, color='k')
+        #     else:
+        #         plot_median_relation(axs[i], bins, p_CDM, r_CDM, errorbars=False, color='k')
+        #         plot_median_relation(axs[i], bins, x_array, y_array, color='grey')
 
         file.close() 
            
@@ -624,8 +631,7 @@ def plot_vmax_over_vpeak(colorbar_param, print_correlation=False, filename:str=N
     for ax in axs:
         ax.set_xscale('log')
         ax.set_xlim(10, 500)
-        ax.set_ylim(0, 2)
-        # ax.set_yticks([20, 40, 60, 80])
+        ax.set_ylim(0, 1.5)
 
     for axi in [3, 4, 5]:
         axs[axi].set_xlabel(r'$r_{{p}}\ [\mathrm{kpc}]$')
@@ -740,7 +746,7 @@ def plot_density_150pc_vertical(colorbar_param:str, profile='NFW', filename:str=
                             p = pericenter[0] if pericenter.shape==(1,) else pericenter
                             if p>6 and p<1.5e3:
                                 im = axs[i].scatter(x=pericenter, y=density_fit, marker='o', linewidths=0,  
-                                                    c=c, cmap=cmap, norm=norm, alpha=0.7)
+                                                    c=c, cmap=cmap, norm=norm, alpha=0.8)
                                 p_array.append(p)
                                 r_array.append(density_fit)
                                 c_array.append(c)
