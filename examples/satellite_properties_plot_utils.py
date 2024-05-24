@@ -187,7 +187,7 @@ def plot_density_150pc(colorbar_param, profile='NFW', print_correlation=False, f
                     
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
                     if p>6 and p<1.5e3: # cleanup
-                        im = axs[i].scatter(x=pericenter, y=density_fit, marker='o',linewidths=0, norm=norm, c=c, cmap=cmap, alpha= 0.8)
+                        im = axs[i].scatter(x=pericenter, y=density_fit, marker='o',edgecolors='grey',linewidths=0.3, norm=norm, c=c, cmap=cmap, alpha= 1)
                         x_array.append(p)
                         y_array.append(density_fit)
                         c_array.append(c)
@@ -243,7 +243,7 @@ def plot_density_150pc(colorbar_param, profile='NFW', print_correlation=False, f
     # plt.subplots_adjust(hspace=0.2, wspace=0.2, right=.86)
     plt.subplots_adjust(hspace=0.1, wspace=0.1, right=.86)
     if filename is not None:
-        fig.savefig(f"figures/{profile}_{filename}.png", dpi=300, transparent=True)
+        fig.savefig(f"figures/{profile}_{filename}.png", dpi=300)#, transparent=True)
     plt.show()
     
  
