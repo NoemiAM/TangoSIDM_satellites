@@ -187,7 +187,7 @@ def plot_density_150pc(colorbar_param, profile='NFW', print_correlation=False, f
                     
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
                     if p>6 and p<1.5e3: # cleanup
-                        im = axs[i].scatter(x=pericenter, y=density_fit, marker='o',edgecolors='grey',linewidths=0.3, norm=norm, c=c, cmap=cmap, alpha= 1)
+                        im = axs[i].scatter(x=pericenter, y=density_fit, marker='o', edgecolors='grey', linewidths=0.2, norm=norm, c=c, cmap=cmap,  alpha=1)
                         x_array.append(p)
                         y_array.append(density_fit)
                         c_array.append(c)
@@ -243,7 +243,7 @@ def plot_density_150pc(colorbar_param, profile='NFW', print_correlation=False, f
     # plt.subplots_adjust(hspace=0.2, wspace=0.2, right=.86)
     plt.subplots_adjust(hspace=0.1, wspace=0.1, right=.86)
     if filename is not None:
-        fig.savefig(f"figures/{profile}_{filename}.png", dpi=300)#, transparent=True)
+        fig.savefig(f"figures/{profile}_{filename}.png", dpi=300, transparent=True)
     plt.show()
     
  
@@ -302,7 +302,7 @@ def plot_density_150pc_velocity(velocity:str="V_max", profile='NFW', print_corre
                         c = data_subhalo['tree_data']['Vmax'][0]
                         cmap, norm = colorbar_args('v_max')
                     
-                    im = axs[i].scatter(x=vel, y=density_fit, marker='o',linewidths=0, norm=norm, c=c, cmap=cmap, alpha=0.8)
+                    im = axs[i].scatter(x=vel, y=density_fit, marker='o',edgecolors='grey', linewidths=0.2, norm=norm, c=c, cmap=cmap, alpha=1)
                     x_array.append(vel)
                     y_array.append(density_fit)
                     c_array.append(c)
@@ -388,7 +388,7 @@ def plot_vmax(colorbar_param, print_correlation=False, filename:str=None):
                     
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
                     if p>6 and p<1.5e3:
-                        im = axs[i].scatter(x=pericenter, y=vmax, marker='o', linewidths=0, norm=norm, c=c, cmap=cmap, alpha=0.8)
+                        im = axs[i].scatter(x=pericenter, y=vmax, marker='o', edgecolors='grey', linewidths=0.2, norm=norm, c=c, cmap=cmap,  alpha=1)
                         x_array.append(p)
                         c_array.append(c)
                         y_array.append(vmax)
@@ -486,7 +486,7 @@ def plot_vpeak(colorbar_param, print_correlation=False, filename:str=None):
                     
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
                     if p>6 and p<1.5e3:
-                        im = axs[i].scatter(x=pericenter, y=vpeak, marker='o', linewidths=0, norm=norm, c=c, cmap=cmap, alpha=0.8)
+                        im = axs[i].scatter(x=pericenter, y=vpeak, marker='o', edgecolors='grey', linewidths=0.2, norm=norm, c=c, cmap=cmap, alpha=1)
                         x_array.append(p)
                         c_array.append(c)
                         y_array.append(vpeak)
@@ -590,7 +590,7 @@ def plot_vmax_over_vpeak(colorbar_param, print_correlation=False, filename:str=N
                     
                     p = pericenter[0] if pericenter.shape==(1,) else pericenter
                     if p>6 and p<1e3:
-                        im = axs[i].scatter(x=pericenter, y=vmax/vpeak, marker='o', linewidths=0, norm=norm, c=c, cmap=cmap, alpha=0.8)
+                        im = axs[i].scatter(x=pericenter, y=vmax/vpeak, marker='o', edgecolors='grey', linewidths=0.2, norm=norm, c=c, cmap=cmap,  alpha=1)
                         x_array.append(p)
                         c_array.append(c)
                         y_array.append(vmax/vpeak)
@@ -745,8 +745,8 @@ def plot_density_150pc_vertical(colorbar_param:str, profile='NFW', filename:str=
 
                             p = pericenter[0] if pericenter.shape==(1,) else pericenter
                             if p>6 and p<1.5e3:
-                                im = axs[i].scatter(x=pericenter, y=density_fit, marker='o', linewidths=0,  
-                                                    c=c, cmap=cmap, norm=norm, alpha=0.8)
+                                im = axs[i].scatter(x=pericenter, y=density_fit, marker='o', edgecolors='grey', linewidths=0.2, 
+                                                    c=c, cmap=cmap, norm=norm,  alpha=1)
                                 p_array.append(p)
                                 r_array.append(density_fit)
                                 c_array.append(c)
